@@ -51,7 +51,7 @@
                 <img src="@Model.ImageUrl" alt="@Model.Nombre" />
             }
             <h3>@Model.Nombre</h3>
-            <span>@Model.Tipo · @(Model.Marca ?? "")</span><br />
+            <span>@(Model.Categoria?.Nombre ?? "—") · @(Model.Marca?.Nombre ?? "—")</span><br />
             <span class="del-price">$@Model.Precio.ToString("N2")</span>
             &nbsp;<span style="color:rgba(255,255,255,0.35);">— @Model.Stock unidades en stock</span>
         </div>

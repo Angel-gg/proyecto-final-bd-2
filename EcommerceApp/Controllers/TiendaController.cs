@@ -2,14 +2,17 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Npgsql;
+using NpgsqlTypes;
+using System.Data;
+using System.Text.Json;
 using EcommerceApp.Data;
 using EcommerceApp.Models;
-using System.Text.Json;
 
 namespace EcommerceApp.Controllers
 {
     /// <summary>
-    /// Tienda web (E-Commerce): Catálogo + Carrito + Checkout + Factura + Mis Pedidos.
+    /// Tienda web (E-Commerce): Catálogo 3FN + Carrito + Checkout transaccional (sp_confirmar_venta) + Factura + Mis Pedidos.
     /// </summary>
     public class TiendaController(
         ApplicationDbContext db,
@@ -21,26 +24,40 @@ namespace EcommerceApp.Controllers
 
         public async Task<IActionResult> Index(string? tipo, string? tab)
         {
-            tab = tab ?? "componentes";
+            tab ??= "componentes";
             ViewBag.Tab = tab;
 
-            var componentesQuery = db.Componentes.AsNoTracking().AsQueryable();
+            var componentesQuery = db.Componentes
+                .Include(c => c.Categoria)
+                .Include(c => c.Marca)
+                .Where(c => c.Activo)
+                .AsNoTracking()
+                .AsQueryable();
+
             if (!string.IsNullOrEmpty(tipo))
-                componentesQuery = componentesQuery.Where(c => c.Tipo == tipo);
-            var componentes = await componentesQuery.OrderBy(c => c.Tipo).ThenBy(c => c.Nombre).ToListAsync();
+                componentesQuery = componentesQuery.Where(c => c.Categoria != null && c.Categoria.Nombre == tipo);
+
+            var componentes = await componentesQuery
+                .OrderBy(c => c.Categoria!.Nombre)
+                .ThenBy(c => c.Nombre)
+                .ToListAsync();
 
             var combos = await db.Combos
-                .Include(c => c.ComboComponentes).ThenInclude(cc => cc.Componente)
+                .Include(c => c.ComboComponentes)
+                    .ThenInclude(cc => cc.Componente)
                 .Where(c => c.Activo)
                 .OrderBy(c => c.Nombre)
                 .ToListAsync();
 
-            var tipos = await db.Componentes
-                .Select(c => c.Tipo).Distinct().OrderBy(t => t).ToListAsync();
+            var tipos = await db.Categorias
+                .Where(c => c.Activa)
+                .OrderBy(c => c.Nombre)
+                .Select(c => c.Nombre)
+                .ToListAsync();
 
-            ViewBag.Tipos      = tipos;
-            ViewBag.TipoActual = tipo;
-            ViewBag.Combos     = combos;
+            ViewBag.Tipos        = tipos;
+            ViewBag.TipoActual   = tipo;
+            ViewBag.Combos       = combos;
             ViewBag.CarritoCount = ObtenerCarrito().TotalItems;
 
             return View(componentes);
@@ -141,7 +158,7 @@ namespace EcommerceApp.Controllers
             return Json(new { count = carrito.TotalItems });
         }
 
-        // ─── Checkout ─────────────────────────────────────────────────────────
+        // ─── Checkout (invoca procedimiento transaccional ventas.sp_confirmar_venta) ───
 
         [Authorize]
         public IActionResult Checkout()
@@ -167,61 +184,66 @@ namespace EcommerceApp.Controllers
                 return RedirectToAction(nameof(Carrito));
             }
 
-            var userId = userManager.GetUserId(User)!;
+            var user = await userManager.GetUserAsync(User);
+            if (user == null) return Challenge();
 
-            // Generar número único de pedido
-            var fechaHoy   = DateTime.UtcNow;
-            var inicioDia  = fechaHoy.Date.ToUniversalTime();
-            var finDia     = inicioDia.AddDays(1);
-            var countHoy   = await db.Pedidos.CountAsync(p => p.FechaPedido >= inicioDia && p.FechaPedido < finDia);
-            var numPedido  = $"TPC-{fechaHoy:yyyyMMdd}-{(countHoy + 1):D4}";
+            var fechaHoy  = DateTime.UtcNow;
+            var numPedido = $"TPC-{fechaHoy:yyyyMMdd-HHmmss}-{Random.Shared.Next(100, 999)}";
+            var sucursalId = user.SucursalId ??
+                await db.Sucursales.Where(s => s.Activa).Select(s => (int?)s.Id).FirstOrDefaultAsync();
 
-            decimal subtotal = carrito.Total;
-            decimal iva      = Math.Round(subtotal * 0.16m, 2);
-            decimal total    = subtotal + iva;
-            decimal comision = Math.Round(subtotal * 0.05m, 2);
-
-            var pedido = new Pedido
+            var itemsPayload = carrito.Items.Select(i => new
             {
-                NumeroPedido = numPedido,
-                UserId       = userId,
-                FechaPedido  = fechaHoy,
-                Subtotal     = subtotal,
-                Impuesto     = iva,
-                Total        = total,
-                Comision     = comision,
-                MetodoPago   = metodoPago,
-                Estado       = EstadoPedido.Completado,
-                Notas        = notas,
-                Items        = carrito.Items.Select(i => new PedidoItem
+                tipo = i.Tipo,
+                id = i.Id,
+                cantidad = i.Cantidad
+            });
+            var itemsJson = JsonSerializer.Serialize(itemsPayload);
+
+            try
+            {
+                var conn = (NpgsqlConnection)db.Database.GetDbConnection();
+                bool debeCerrar = conn.State != ConnectionState.Open;
+                if (debeCerrar) await conn.OpenAsync();
+
+                int pedidoId;
+                try
                 {
-                    ProductoNombre = i.Nombre,
-                    Tipo           = i.Tipo,
-                    ProductoId     = i.Id,
-                    PrecioUnitario = i.Precio,
-                    Cantidad       = i.Cantidad,
-                    Subtotal       = i.Subtotal,
-                    ImageUrl       = i.ImageUrl
-                }).ToList()
-            };
+                    await using var cmd = new NpgsqlCommand(
+                        "CALL ventas.sp_confirmar_venta(@p_user_id, @p_numero_pedido, @p_items, @p_metodo_pago, @p_sucursal_id, @p_notas, @p_pedido_id)",
+                        conn);
 
-            db.Pedidos.Add(pedido);
+                    cmd.Parameters.Add(new NpgsqlParameter("p_user_id", NpgsqlDbType.Text) { Value = user.Id });
+                    cmd.Parameters.Add(new NpgsqlParameter("p_numero_pedido", NpgsqlDbType.Varchar) { Value = numPedido });
+                    cmd.Parameters.Add(new NpgsqlParameter("p_items", NpgsqlDbType.Jsonb) { Value = itemsJson });
+                    cmd.Parameters.Add(new NpgsqlParameter("p_metodo_pago", NpgsqlDbType.Smallint) { Value = (short)metodoPago });
+                    cmd.Parameters.Add(new NpgsqlParameter("p_sucursal_id", NpgsqlDbType.Integer) { Value = (object?)sucursalId ?? DBNull.Value });
+                    cmd.Parameters.Add(new NpgsqlParameter("p_notas", NpgsqlDbType.Text) { Value = (object?)notas ?? DBNull.Value });
 
-            // Marcar carrito abandonado como convertido
-            var uid = userId;
-            var carritoAbandonado = await db.CarritosAbandonados
-                .FirstOrDefaultAsync(c => c.UserId == uid && !c.Convertido);
-            if (carritoAbandonado != null)
-            {
-                carritoAbandonado.Convertido = true;
-                db.CarritosAbandonados.Update(carritoAbandonado);
+                    var outPedidoId = new NpgsqlParameter("p_pedido_id", NpgsqlDbType.Integer)
+                    {
+                        Direction = ParameterDirection.InputOutput,
+                        Value = DBNull.Value
+                    };
+                    cmd.Parameters.Add(outPedidoId);
+
+                    await cmd.ExecuteNonQueryAsync();
+                    pedidoId = Convert.ToInt32(outPedidoId.Value);
+                }
+                finally
+                {
+                    if (debeCerrar) await conn.CloseAsync();
+                }
+
+                HttpContext.Session.Remove(CarritoKey);
+                TempData["Exito"] = $"¡Compra completada con integridad transaccional! Pedido {numPedido}";
+                return RedirectToAction(nameof(Factura), new { id = pedidoId });
             }
-
-            await db.SaveChangesAsync();
-            HttpContext.Session.Remove(CarritoKey);
-
-            TempData["Exito"] = $"¡Compra completada! Pedido {numPedido}";
-            return RedirectToAction(nameof(Factura), new { id = pedido.Id });
+            catch (PostgresException pgEx)
+            {
+                TempData["Error"] = $"No se pudo confirmar la compra (ROLLBACK): {pgEx.MessageText}";
+                return RedirectToAction(nameof(Checkout));
+            }
         }
 
         // ─── Factura / Comprobante ─────────────────────────────────────────────
@@ -320,8 +342,9 @@ namespace EcommerceApp.Controllers
                     db.CarritosAbandonados.Add(new CarritoAbandonado
                     {
                         UserId               = userId,
-                        FechaCreacion        = DateTime.Now,
-                        FechaUltimaActividad = DateTime.Now,
+                        FechaCreacion        = DateTime.UtcNow,
+                        FechaUltimaActividad = DateTime.UtcNow,
+                        FechaExpira          = DateTime.UtcNow.AddDays(7),
                         ItemsJson            = itemsJson,
                         TotalEstimado        = carrito.Total,
                         TotalItems           = carrito.TotalItems,
@@ -331,10 +354,10 @@ namespace EcommerceApp.Controllers
             }
             else
             {
-                existente.FechaUltimaActividad = DateTime.Now;
-                existente.ItemsJson    = itemsJson;
-                existente.TotalEstimado = carrito.Total;
-                existente.TotalItems   = carrito.TotalItems;
+                existente.FechaUltimaActividad = DateTime.UtcNow;
+                existente.ItemsJson            = itemsJson;
+                existente.TotalEstimado        = carrito.Total;
+                existente.TotalItems           = carrito.TotalItems;
                 db.CarritosAbandonados.Update(existente);
             }
 

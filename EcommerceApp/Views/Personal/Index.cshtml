@@ -79,7 +79,7 @@
         <tbody>
             @foreach (var u in Model)
             {
-                var nombre = u.NombreCompleto ?? u.FullName ?? "Sin Nombre";
+                var nombre = u.NombreCompleto ?? "Sin Nombre";
                 var initial = !string.IsNullOrEmpty(u.Email) ? u.Email.Substring(0, 1).ToUpper() : "?";
                 var roles = userRoles.ContainsKey(u.Id) ? userRoles[u.Id] : new List<string>();
                 

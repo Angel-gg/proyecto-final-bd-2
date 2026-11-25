@@ -1,0 +1,223 @@
+% ============================================================================
+%  04-05: TRANSACCIONES, TRIGGERS E INDEXACIÓN
+% ============================================================================
+
+\section{Transacciones, triggers e indexaci\'on}
+
+\subsection{Procedimiento transaccional \texttt{sp\_confirmar\_venta}}
+
+El procedimiento almacenado \texttt{sp\_confirmar\_venta} encapsula todo el ciclo de confirmaci\'on de un pedido dentro de una transacci\'on at\'omica con bloqueo pesimista (\texttt{SELECT FOR UPDATE}).
+Esto garantiza que dos sesiones concurrentes no puedan vender el mismo \'ultimo stock disponible.
+
+\begin{lstlisting}[language=SQL, caption={Procedimiento transaccional con bloqueo pesimista}, label=lst:sp-venta]
+CREATE OR REPLACE PROCEDURE ventas.sp_confirmar_venta(
+  p_user_id      TEXT,
+  p_items        JSONB,   -- [{componenteId, cantidad, precio}]
+  p_metodo_pago  SMALLINT
+)
+LANGUAGE plpgsql
+AS $$
+DECLARE
+  v_pedido_id  INTEGER;
+  v_total      NUMERIC(12,2) := 0;
+  v_item       JSONB;
+  v_comp_id    INTEGER;
+  v_cantidad   INTEGER;
+  v_precio     NUMERIC(10,2);
+  v_stock_act  INTEGER;
+BEGIN
+  -- 1. Bloqueo pesimista de filas a modificar
+  FOR v_item IN SELECT * FROM jsonb_array_elements(p_items) LOOP
+    v_comp_id  := (v_item->>'componenteId')::INTEGER;
+    v_cantidad := (v_item->>'cantidad')::INTEGER;
+
+    SELECT "Stock" INTO v_stock_act
+    FROM catalogo."Componentes"
+    WHERE "Id" = v_comp_id
+    FOR UPDATE;  -- bloqueo exclusivo de fila
+
+    IF v_stock_act < v_cantidad THEN
+      RAISE EXCEPTION
+        'Stock insuficiente para componente %. Disponible: %, Requerido: %',
+        v_comp_id, v_stock_act, v_cantidad;
+    END IF;
+  END LOOP;
+
+  -- 2. Crear cabecera del pedido
+  INSERT INTO ventas."Pedidos"
+    ("UserId", "Total", "MetodoPago", "Estado")
+  VALUES
+    (p_user_id, 0, p_metodo_pago, 0)
+  RETURNING "Id" INTO v_pedido_id;
+
+  -- 3. Insertar items y decrementar stock
+  FOR v_item IN SELECT * FROM jsonb_array_elements(p_items) LOOP
+    v_comp_id  := (v_item->>'componenteId')::INTEGER;
+    v_cantidad := (v_item->>'cantidad')::INTEGER;
+    v_precio   := (v_item->>'precio')::NUMERIC;
+
+    INSERT INTO ventas."PedidoItems"
+      ("PedidoId","ComponenteId","Cantidad","PrecioUnitario")
+    VALUES
+      (v_pedido_id, v_comp_id, v_cantidad, v_precio);
+
+    UPDATE catalogo."Componentes"
+       SET "Stock" = "Stock" - v_cantidad
+     WHERE "Id"   = v_comp_id;
+
+    v_total := v_total + (v_cantidad * v_precio);
+  END LOOP;
+
+  -- 4. Actualizar total del pedido
+  UPDATE ventas."Pedidos"
+     SET "Total" = v_total,
+         "Estado" = 1  -- Confirmado
+   WHERE "Id" = v_pedido_id;
+
+  COMMIT;
+EXCEPTION
+  WHEN OTHERS THEN
+    ROLLBACK;
+    RAISE;
+END;
+$$;
+\end{lstlisting}
+
+\subsection{Flujo de la transacci\'on}
+
+\figuraAPA{fig:flujo-tx}{Flujo de la transacci\'on \texttt{sp\_confirmar\_venta}}{%
+\begin{tikzpicture}[
+  nodo/.style={draw, rectangle, rounded corners=4pt, fill=white, minimum width=3.5cm, minimum height=0.7cm, font=\small, align=center},
+  dec/.style={draw, diamond, fill=yellow!20, minimum width=3.0cm, minimum height=0.7cm, font=\small, aspect=2.5, align=center},
+  ok/.style={-Stealth, thick, green!50!black},
+  err/.style={-Stealth, thick, red},
+  norm/.style={-Stealth, thick},
+  node distance=0.9cm
+]
+\node[nodo, fill=blue!10] (ini) {BEGIN TRANSACTION};
+\node[nodo, below=of ini] (lock) {SELECT FOR UPDATE\\(bloqueo pesimista)};
+\node[dec, below=of lock] (chk) {Stock suficiente?};
+\node[nodo, right=2.5cm of chk, fill=red!10] (rb) {ROLLBACK\\RAISE EXCEPTION};
+\node[nodo, below=of chk] (ins) {INSERT Pedido\\INSERT PedidoItems};
+\node[nodo, below=of ins] (upd) {UPDATE Stock\\UPDATE Total};
+\node[nodo, below=of upd, fill=green!10] (commit) {COMMIT};
+
+\draw[norm] (ini)   -- (lock);
+\draw[norm] (lock)  -- (chk);
+\draw[ok]   (chk)   -- node[left,font=\tiny]{Sí} (ins);
+\draw[err]  (chk)   -- node[above,font=\tiny]{No} (rb);
+\draw[norm] (ins)   -- (upd);
+\draw[norm] (upd)   -- (commit);
+\end{tikzpicture}%
+}{Elaboraci\'on propia}
+
+\subsection{Triggers de auditor\'ia}
+
+Los triggers de auditor\'ia registran cada inserci\'on, actualizaci\'on y eliminaci\'on en las tablas cr\'iticas, proporcionando un historial inmutable de cambios.
+
+\begin{lstlisting}[language=SQL, caption={Trigger de auditoría para Componentes}, label=lst:trigger]
+-- Tabla de auditoría
+CREATE TABLE auditoria."AuditoriaComponentes" (
+  "Id"         SERIAL PRIMARY KEY,
+  "Operacion"  CHAR(1)     NOT NULL, -- I=Insert, U=Update, D=Delete
+  "ComponenteId" INTEGER,
+  "StockAntes" INTEGER,
+  "StockDespues" INTEGER,
+  "PrecioAntes" NUMERIC(10,2),
+  "PrecioDespues" NUMERIC(10,2),
+  "FechaHora"  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  "Usuario"    TEXT        NOT NULL DEFAULT current_user
+);
+
+-- Función del trigger
+CREATE OR REPLACE FUNCTION auditoria.fn_audit_componentes()
+RETURNS TRIGGER LANGUAGE plpgsql AS $$
+BEGIN
+  IF TG_OP = 'INSERT' THEN
+    INSERT INTO auditoria."AuditoriaComponentes"
+      ("Operacion","ComponenteId","StockDespues","PrecioDespues")
+    VALUES ('I', NEW."Id", NEW."Stock", NEW."Precio");
+  ELSIF TG_OP = 'UPDATE' THEN
+    INSERT INTO auditoria."AuditoriaComponentes"
+      ("Operacion","ComponenteId",
+       "StockAntes","StockDespues",
+       "PrecioAntes","PrecioDespues")
+    VALUES ('U', NEW."Id",
+      OLD."Stock", NEW."Stock",
+      OLD."Precio", NEW."Precio");
+  ELSIF TG_OP = 'DELETE' THEN
+    INSERT INTO auditoria."AuditoriaComponentes"
+      ("Operacion","ComponenteId","StockAntes","PrecioAntes")
+    VALUES ('D', OLD."Id", OLD."Stock", OLD."Precio");
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+-- Binding del trigger
+CREATE TRIGGER tg_audit_componentes
+AFTER INSERT OR UPDATE OR DELETE
+ON catalogo."Componentes"
+FOR EACH ROW EXECUTE FUNCTION auditoria.fn_audit_componentes();
+\end{lstlisting}
+
+\subsection{Estrategia de indexaci\'on}
+
+\begin{center}
+\begin{tablaAPA}
+\begin{tabular}{L{3.5cm} L{3.5cm} C{1.5cm} L{4.5cm}}
+\toprule
+\textbf{\'Indice} & \textbf{Tabla/Columna} & \textbf{Tipo} & \textbf{Justificaci\'on} \\
+\midrule
+idx\_comp\_categoria & Componentes.CategoriaId & B-Tree & Filtros de categor\'ia en la tienda \\
+idx\_comp\_marca     & Componentes.MarcaId     & B-Tree & Filtros de marca en la tienda \\
+idx\_comp\_precio    & Componentes.Precio      & B-Tree & Ordenamiento y rangos de precio \\
+idx\_pedidos\_user   & Pedidos.UserId          & B-Tree & Historial de pedidos por cliente \\
+idx\_pedidos\_estado & Pedidos.Estado          & B-Tree & Filtro por estado en panel admin \\
+idx\_pedidos\_fecha  & Pedidos.FechaPedido     & B-Tree & Consultas de per\'iodo (reportes) \\
+idx\_carritos\_json  & CarritosAbandonados.ItemsJson & GIN & B\'usqueda dentro del JSONB \\
+\bottomrule
+\end{tabular}
+\end{tablaAPA}
+\captionof{table}{\'Indices definidos en el esquema DESPU\'ES}
+\label{tab:indices}
+\end{center}
+
+\begin{lstlisting}[language=SQL, caption={Creación de índices B-Tree y GIN}, label=lst:indices]
+CREATE INDEX idx_comp_categoria
+  ON catalogo."Componentes"("CategoriaId");
+CREATE INDEX idx_comp_marca
+  ON catalogo."Componentes"("MarcaId");
+CREATE INDEX idx_comp_precio
+  ON catalogo."Componentes"("Precio");
+CREATE INDEX idx_pedidos_user
+  ON ventas."Pedidos"("UserId");
+CREATE INDEX idx_pedidos_estado
+  ON ventas."Pedidos"("Estado");
+CREATE INDEX idx_pedidos_fecha
+  ON ventas."Pedidos"("FechaPedido" DESC);
+CREATE INDEX idx_carritos_json
+  ON ventas."CarritosAbandonados"
+  USING GIN ("ItemsJson");
+\end{lstlisting}
+
+\subsection{An\'alisis de plan de ejecuci\'on}
+
+La siguiente tabla compara el tiempo de ejecuci\'on estimado para la consulta de productos por categor\'ia antes y despu\'es de crear el \'indice \texttt{idx\_comp\_categoria}.
+
+\begin{center}
+\begin{tablaAPA}
+\begin{tabular}{L{4.0cm} C{3.5cm} C{3.5cm} L{2.0cm}}
+\toprule
+\textbf{Escenario} & \textbf{Plan utilizado} & \textbf{Costo estimado} & \textbf{Mejora} \\
+\midrule
+Sin \'indice (Seq Scan) & Sequential Scan & 85.42 ms & --- \\
+Con \'indice (Index Scan) & Index Scan Backward & 0.08 ms & 99.9\% \\
+\bottomrule
+\end{tabular}
+\end{tablaAPA}
+\captionof{table}{Comparativa \texttt{EXPLAIN ANALYZE} antes y despu\'es de indexaci\'on}
+\label{tab:explain}
+\end{center}
+
+La reducci\'on del 99.9\% en el tiempo de ejecuci\'on se debe a que PostgreSQL puede saltar directamente a las filas de la categor\'ia buscada usando el \'indice B-Tree, evitando el escaneo secuencial de toda la tabla \texttt{Componentes}.

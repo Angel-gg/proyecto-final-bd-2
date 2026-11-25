@@ -62,24 +62,28 @@
             <div class="detail-img-placeholder">🔧</div>
         }
         <div class="detail-body">
-            <span class="detail-type-badge">@Model.Tipo</span>
+            <span class="detail-type-badge">@(Model.Categoria?.Nombre ?? "Sin categoría")</span>
             <h1 class="detail-title">@Model.Nombre</h1>
-            @if (!string.IsNullOrEmpty(Model.Marca))
+            @if (Model.Marca != null)
             {
-                <p class="detail-brand">por @Model.Marca</p>
+                <p class="detail-brand">por @Model.Marca.Nombre</p>
             }
             <div class="detail-price">$@Model.Precio.ToString("N2") MXN</div>
 
             <div class="detail-grid">
                 <div class="detail-field">
                     <label>Stock</label>
-                    <p class="@(Model.Stock > 10 ? "stock-ok" : Model.Stock > 0 ? "stock-low" : "stock-out")">
-                        @(Model.Stock > 10 ? $"✓ {Model.Stock} unidades" : Model.Stock > 0 ? $"⚠ Solo {Model.Stock} restantes" : "✗ Agotado")
+                    <p class="@(Model.Stock > Model.StockMinimo ? "stock-ok" : Model.Stock > 0 ? "stock-low" : "stock-out")">
+                        @(Model.Stock > Model.StockMinimo ? $"✓ {Model.Stock} unidades" : Model.Stock > 0 ? $"⚠ Solo {Model.Stock} restantes" : "✗ Agotado")
                     </p>
                 </div>
                 <div class="detail-field">
-                    <label>ID del sistema</label>
-                    <p>#@Model.Id</p>
+                    <label>Stock Mínimo / Ciclo de Vida</label>
+                    <p>@Model.StockMinimo unid. · @Model.EstadoObsolescencia</p>
+                </div>
+                <div class="detail-field">
+                    <label>Proveedor</label>
+                    <p>@(Model.Proveedor?.Nombre ?? "No asignado")</p>
                 </div>
                 <div class="detail-field">
                     <label>Registrado</label>

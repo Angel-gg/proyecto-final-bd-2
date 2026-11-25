@@ -12,21 +12,34 @@ namespace EcommerceApp.Controllers
         // GET /Sucursales
         public async Task<IActionResult> Index()
         {
-            var sucursales = await db.Sucursales.OrderBy(s => s.Nombre).ToListAsync();
+            var sucursales = await db.Sucursales
+                .Include(s => s.Region)
+                .OrderBy(s => s.Nombre)
+                .ToListAsync();
             return View(sucursales);
         }
 
         // GET /Sucursales/Create
         [Authorize(Roles = "GerenteGeneral,Admin")]
-        public IActionResult Create() => View(new Sucursal());
+        public async Task<IActionResult> Create()
+        {
+            ViewBag.Regiones = await db.Regiones.Where(r => r.Activa).OrderBy(r => r.Nombre).ToListAsync();
+            return View(new Sucursal());
+        }
 
         // POST /Sucursales/Create
         [HttpPost, ValidateAntiForgeryToken]
         [Authorize(Roles = "GerenteGeneral,Admin")]
         public async Task<IActionResult> Create(Sucursal model)
         {
-            if (!ModelState.IsValid) return View(model);
-            model.CreadaEn = DateTime.Now;
+            ModelState.Remove("Region");
+            if (!ModelState.IsValid)
+            {
+                ViewBag.Regiones = await db.Regiones.Where(r => r.Activa).OrderBy(r => r.Nombre).ToListAsync();
+                return View(model);
+            }
+
+            model.CreadaEn = DateTime.UtcNow;
             db.Sucursales.Add(model);
             await db.SaveChangesAsync();
             TempData["Exito"] = $"Sucursal \"{model.Nombre}\" creada exitosamente.";
@@ -39,6 +52,7 @@ namespace EcommerceApp.Controllers
         {
             var s = await db.Sucursales.FindAsync(id);
             if (s == null) return NotFound();
+            ViewBag.Regiones = await db.Regiones.Where(r => r.Activa).OrderBy(r => r.Nombre).ToListAsync();
             return View(s);
         }
 
@@ -48,7 +62,13 @@ namespace EcommerceApp.Controllers
         public async Task<IActionResult> Edit(int id, Sucursal model)
         {
             if (id != model.Id) return BadRequest();
-            if (!ModelState.IsValid) return View(model);
+            ModelState.Remove("Region");
+            if (!ModelState.IsValid)
+            {
+                ViewBag.Regiones = await db.Regiones.Where(r => r.Activa).OrderBy(r => r.Nombre).ToListAsync();
+                return View(model);
+            }
+
             db.Sucursales.Update(model);
             await db.SaveChangesAsync();
             TempData["Exito"] = "Sucursal actualizada.";

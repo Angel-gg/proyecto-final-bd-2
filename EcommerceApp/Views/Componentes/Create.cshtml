@@ -1,6 +1,9 @@
 @model EcommerceApp.Models.Componente
 @{
     ViewData["Title"] = "Nuevo Componente — TechParts ERP";
+    var categorias = ViewBag.Categorias as List<EcommerceApp.Models.Categoria> ?? new();
+    var marcas = ViewBag.Marcas as List<EcommerceApp.Models.Marca> ?? new();
+    var proveedores = ViewBag.Proveedores as List<EcommerceApp.Models.Proveedor> ?? new();
 }
 
 <style>
@@ -92,27 +95,48 @@
 
             <div class="form-row">
                 <div class="form-group">
-                    <label asp-for="Tipo" class="form-label">Tipo / Categoría *</label>
-                    <select asp-for="Tipo" class="form-control-tp">
-                        <option value="">— Selecciona —</option>
-                        <option>Procesadores</option>
-                        <option>Tarjetas de Video</option>
-                        <option>Memoria RAM</option>
-                        <option>Almacenamiento</option>
-                        <option>Tarjetas Madre</option>
-                        <option>Fuentes de Poder</option>
-                        <option>Refrigeración</option>
-                        <option>Monitores</option>
-                        <option>Periféricos</option>
-                        <option>Gabinetes</option>
-                        <option>Redes</option>
-                        <option>Otro</option>
+                    <label asp-for="CategoriaId" class="form-label">Categoría (3FN) *</label>
+                    <select asp-for="CategoriaId" class="form-control-tp">
+                        <option value="">— Selecciona Categoría —</option>
+                        @foreach (var cat in categorias)
+                        {
+                            <option value="@cat.Id">@cat.Nombre</option>
+                        }
                     </select>
-                    <span asp-validation-for="Tipo" class="form-error"></span>
+                    <span asp-validation-for="CategoriaId" class="form-error"></span>
                 </div>
                 <div class="form-group">
-                    <label asp-for="Marca" class="form-label">Marca</label>
-                    <input asp-for="Marca" class="form-control-tp" placeholder="Ej: ASUS, Intel, Samsung..." />
+                    <label asp-for="MarcaId" class="form-label">Marca (3FN) *</label>
+                    <select asp-for="MarcaId" class="form-control-tp">
+                        <option value="">— Selecciona Marca —</option>
+                        @foreach (var m in marcas)
+                        {
+                            <option value="@m.Id">@m.Nombre</option>
+                        }
+                    </select>
+                    <span asp-validation-for="MarcaId" class="form-error"></span>
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label asp-for="ProveedorId" class="form-label">Proveedor Principal</label>
+                    <select asp-for="ProveedorId" class="form-control-tp">
+                        <option value="">— Sin proveedor asignado —</option>
+                        @foreach (var p in proveedores)
+                        {
+                            <option value="@p.Id">@p.Nombre</option>
+                        }
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label asp-for="EstadoObsolescencia" class="form-label">Estado del Ciclo de Vida (ODS 12)</label>
+                    <select asp-for="EstadoObsolescencia" class="form-control-tp">
+                        <option value="Vigente">Vigente</option>
+                        <option value="PorDescontinuar">Por Descontinuar</option>
+                        <option value="Obsoleto">Obsoleto</option>
+                        <option value="Merma">Merma</option>
+                    </select>
                 </div>
             </div>
 
@@ -132,7 +156,7 @@
 
             <div class="form-row">
                 <div class="form-group">
-                    <label asp-for="Precio" class="form-label">Precio (MXN) *</label>
+                    <label asp-for="Precio" class="form-label">Precio (Bs.) *</label>
                     <input asp-for="Precio" class="form-control-tp" type="number" step="0.01" placeholder="0.00" />
                     <span asp-validation-for="Precio" class="form-error"></span>
                 </div>
@@ -141,6 +165,11 @@
                     <input asp-for="Stock" class="form-control-tp" type="number" min="0" placeholder="0" />
                     <span asp-validation-for="Stock" class="form-error"></span>
                 </div>
+            </div>
+            <div class="form-group">
+                <label asp-for="StockMinimo" class="form-label">Stock mínimo de alerta</label>
+                <input asp-for="StockMinimo" class="form-control-tp" type="number" min="0" value="5" />
+                <span asp-validation-for="StockMinimo" class="form-error"></span>
             </div>
 
             <div class="form-group">

@@ -1,0 +1,157 @@
+% ============================================================================
+%  04-06: INTEGRACIÓN CON EF CORE Y OBJETIVOS DE DESARROLLO SOSTENIBLE
+% ============================================================================
+
+\section{Integraci\'on con EF Core y ODS}
+
+\subsection{Configuraci\'on Fluent API para m\'ultiples esquemas}
+
+Entity Framework Core 10 permite mapear las entidades a tablas en diferentes esquemas de PostgreSQL mediante el m\'etodo \texttt{HasDefaultSchema} a nivel de contexto y \texttt{ToTable(nombre, esquema)} a nivel de entidad.
+El siguiente fragmento de C\# muestra la configuraci\'on del \texttt{ApplicationDbContext} refactorizado.
+
+\begin{lstlisting}[language={[Sharp]C}, caption={ApplicationDbContext con esquemas múltiples y restricciones}, label=lst:efcore]
+public class ApplicationDbContext
+    : IdentityDbContext<ApplicationUser>
+{
+    public ApplicationDbContext(
+        DbContextOptions<ApplicationDbContext> options)
+        : base(options) { }
+
+    // DbSets de negocio
+    public DbSet<Componente>         Componentes        { get; set; }
+    public DbSet<Categoria>          Categorias         { get; set; }
+    public DbSet<Marca>              Marcas             { get; set; }
+    public DbSet<Combo>              Combos             { get; set; }
+    public DbSet<ComboComponente>    ComboComponentes   { get; set; }
+    public DbSet<Pedido>             Pedidos            { get; set; }
+    public DbSet<PedidoItem>         PedidoItems        { get; set; }
+    public DbSet<CarritoAbandonado>  CarritosAbandonados{ get; set; }
+    public DbSet<Sucursal>           Sucursales         { get; set; }
+    public DbSet<Proveedor>          Proveedores        { get; set; }
+    public DbSet<Region>             Regiones           { get; set; }
+
+    protected override void OnModelCreating(
+        ModelBuilder modelBuilder)
+    {
+        base.OnModelCreating(modelBuilder);
+
+        // --- Esquema catalogo ---
+        modelBuilder.Entity<Categoria>(e => {
+            e.ToTable("Categorias", "catalogo");
+            e.HasIndex(c => c.Nombre).IsUnique();
+            e.HasIndex(c => c.Slug).IsUnique();
+        });
+
+        modelBuilder.Entity<Marca>(e => {
+            e.ToTable("Marcas", "catalogo");
+            e.HasIndex(m => m.Nombre).IsUnique();
+        });
+
+        modelBuilder.Entity<Componente>(e => {
+            e.ToTable("Componentes", "catalogo");
+            e.HasCheckConstraint("ck_comp_precio",
+                "\"Precio\" > 0");
+            e.HasCheckConstraint("ck_comp_stock",
+                "\"Stock\" >= 0");
+            e.HasOne(c => c.Categoria)
+             .WithMany(cat => cat.Componentes)
+             .HasForeignKey(c => c.CategoriaId)
+             .OnDelete(DeleteBehavior.Restrict);
+            e.HasOne(c => c.Marca)
+             .WithMany(m => m.Componentes)
+             .HasForeignKey(c => c.MarcaId)
+             .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<Combo>(e => {
+            e.ToTable("Combos", "catalogo");
+            e.HasCheckConstraint("ck_combo_precio",
+                "\"PrecioBase\" > 0");
+            e.HasCheckConstraint("ck_combo_desc",
+                "\"Descuento\" >= 0 AND \"Descuento\" <= 100");
+        });
+
+        // --- Esquema ventas ---
+        modelBuilder.Entity<Pedido>(e => {
+            e.ToTable("Pedidos", "ventas");
+            e.HasCheckConstraint("ck_ped_total",
+                "\"Total\" >= 0");
+        });
+
+        modelBuilder.Entity<PedidoItem>(e => {
+            e.ToTable("PedidoItems", "ventas");
+            e.HasCheckConstraint("ck_pi_exclusivo",
+                "(\"ComponenteId\" IS NOT NULL AND " +
+                " \"ComboId\" IS NULL) OR " +
+                "(\"ComboId\" IS NOT NULL AND " +
+                " \"ComponenteId\" IS NULL)");
+            e.HasOne(pi => pi.Componente)
+             .WithMany()
+             .HasForeignKey(pi => pi.ComponenteId)
+             .OnDelete(DeleteBehavior.Restrict)
+             .IsRequired(false);
+            e.HasOne(pi => pi.Combo)
+             .WithMany()
+             .HasForeignKey(pi => pi.ComboId)
+             .OnDelete(DeleteBehavior.Restrict)
+             .IsRequired(false);
+        });
+
+        modelBuilder.Entity<CarritoAbandonado>(e => {
+            e.ToTable("CarritosAbandonados", "ventas");
+            e.Property(c => c.ItemsJson)
+             .HasColumnType("jsonb");
+        });
+
+        // --- Esquema operaciones ---
+        modelBuilder.Entity<Sucursal>(e =>
+            e.ToTable("Sucursales", "operaciones"));
+        modelBuilder.Entity<Proveedor>(e =>
+            e.ToTable("Proveedores", "operaciones"));
+        modelBuilder.Entity<Region>(e =>
+            e.ToTable("Regiones", "operaciones"));
+    }
+}
+\end{lstlisting}
+
+\subsection{An\'alisis cr\'itico de las decisiones de dise\~no}
+
+\subsubsection{Separaci\'on en esquemas versus tabla \'unica}
+
+La decisi\'on de dividir el esquema \texttt{public} en cinco esquemas especializados introduce complejidad en las cadenas de conexi\'on y en las migraciones de EF Core, pero aporta beneficios significativos:
+
+\begin{itemize}
+  \item \textbf{Control de acceso granular:} Es posible otorgar permisos \texttt{USAGE} a roles de base de datos por esquema (e.g., el rol \texttt{vendedor\_role} accede solo a \texttt{ventas} y \texttt{catalogo}, nunca a \texttt{auditoria}).
+  \item \textbf{Aislamiento de datos sensibles:} El esquema \texttt{auditoria} puede configurarse con Row Level Security (RLS) de Supabase para que solo el rol administrador lea los registros.
+  \item \textbf{Escalabilidad:} A futuro, el esquema \texttt{catalogo} puede moverse a un servidor PostgreSQL de réplica de lectura sin afectar las transacciones de ventas.
+\end{itemize}
+
+\subsubsection{JSONB para \texttt{ItemsJson} vs tabla relacional}
+
+Mantener \texttt{ItemsJson} como \texttt{jsonb} en \texttt{CarritosAbandonados} en lugar de crear una tabla \texttt{CarritoItems} es una decisi\'on deliberada:
+
+\begin{itemize}
+  \item Los carritos abandonados son datos efímeros con estructura variable; no requieren la consistencia transaccional de las tablas de pedidos.
+  \item El tipo \texttt{jsonb} permite búsquedas con operadores nativos (\texttt{@>}, \texttt{?}, \texttt{jsonb\_array\_elements}) y el índice GIN habilita estas búsquedas con rendimiento O(log n).
+  \item Crear una tabla relacional para carritos abandonados añadiría complejidad de JOIN sin beneficio de integridad referencial, dado que los ítems del carrito pueden referenciar componentes ya eliminados del catálogo.
+\end{itemize}
+
+\subsection{Alineaci\'on con Objetivos de Desarrollo Sostenible}
+
+\subsubsection{ODS 8 --- Trabajo decente y crecimiento econ\'omico}
+
+El redise\~no de la base de datos contribuye al ODS 8 en dos dimensiones:
+
+\begin{enumerate}
+  \item \textbf{Eficiencia operativa:} La indexaci\'on y los procedimientos almacenados reducen el tiempo de respuesta de las consultas de ventas, permitiendo que el equipo comercial gestione m\'as pedidos por hora sin incrementar la plantilla \citep{ods8_2015}.
+  \item \textbf{Escalabilidad del negocio:} La estructura normalizada y los esquemas especializados permiten incorporar nuevas sucursales y categor\'ias de productos sin reestructurar la base de datos, facilitando el crecimiento sostenido de la PYME.
+\end{enumerate}
+
+\subsubsection{ODS 12 --- Producci\'on y consumo responsables}
+
+La integridad declarativa implementada contribuye al ODS 12 de la siguiente manera \citep{ods12_2015}:
+
+\begin{enumerate}
+  \item \textbf{Control de inventario:} La restricci\'on \texttt{CHECK (Stock >= 0)} y el bloqueo pesimista en \texttt{sp\_confirmar\_venta} eliminan la posibilidad de sobreventa, evitando el consumo innecesario de recursos log\'isticos para gestionar devoluciones y cancelaciones por falta de stock.
+  \item \textbf{Trazabilidad:} Los triggers de auditor\'ia crean un registro inmutable de todos los cambios de stock y precios, permitiendo auditor\'ias de responsabilidad en la cadena de suministro.
+\end{enumerate}

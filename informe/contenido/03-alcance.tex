@@ -1,0 +1,42 @@
+% ============================================================================
+%  CAPÍTULO II (continuación): ALCANCE Y LÍMITES
+% ============================================================================
+
+\section{Alcance}
+
+\subsection{Tecnologías y entorno}
+
+El proyecto opera sobre el siguiente stack tecnológico:
+
+\begin{itemize}
+  \item \textbf{Motor de base de datos:} PostgreSQL 15 hospedado en Supabase (región \textit{us-west-2}, pool de conexiones PgBouncer en modo \textit{session}).
+  \item \textbf{ORM:} Entity Framework Core 10 con proveedor Npgsql 9 para .NET 10.
+  \item \textbf{Aplicación web:} ASP.NET Core MVC 10 con ASP.NET Identity para autenticación y autorización basada en roles.
+  \item \textbf{Lenguaje del servidor:} C\# 13.
+  \item \textbf{Control de versiones:} Git / GitHub (\texttt{proyecto-final-bd-2}).
+\end{itemize}
+
+\subsection{Cobertura del rediseño}
+
+El alcance del rediseño de base de datos comprende:
+
+\begin{enumerate}
+  \item Separación del esquema monolítico \texttt{public} en cinco esquemas especializados: \texttt{catalogo}, \texttt{ventas}, \texttt{operaciones}, \texttt{seguridad} y \texttt{auditoria}.
+  \item Normalización de las tablas de negocio existentes hasta la 3FN.
+  \item Creación de tablas nuevas: \texttt{Categorias}, \texttt{Marcas}, \texttt{Regiones}, \texttt{AuditoriaPedidos}, \texttt{AuditoriaComponentes}.
+  \item Adición de columnas: \texttt{ItemsJson} migrado de \texttt{text} a \texttt{jsonb} en \texttt{CarritosAbandonados}.
+  \item Definición de restricciones \texttt{CHECK} y \texttt{UNIQUE} en todas las tablas de negocio.
+  \item Script SQL completo (\texttt{anexos/script\_bd2\_completo.sql}) con DDL, DML y objetos avanzados.
+  \item Integración de la nueva estructura en EF Core mediante Fluent API (documentada en este informe, sin modificar el código fuente durante la elaboración del mismo).
+\end{enumerate}
+
+\subsection{Límites}
+
+Los siguientes aspectos quedan fuera del alcance del presente trabajo:
+
+\begin{itemize}
+  \item Migración efectiva de la base de datos de Supabase en producción (el script es ejecutable pero no se aplicó al entorno productivo durante la elaboración del informe).
+  \item Rediseño de la interfaz de usuario o de la lógica de negocio en C\#.
+  \item Configuración de alta disponibilidad, replicación o particionamiento de tablas.
+  \item Implementación de Row Level Security (RLS) de Supabase (se menciona como recomendación futura).
+\end{itemize}

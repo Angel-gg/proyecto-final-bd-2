@@ -4,8 +4,7 @@ using System.ComponentModel.DataAnnotations.Schema;
 namespace EcommerceApp.Models
 {
     /// <summary>
-    /// Combo — paquete de componentes vendidos juntos con precio especial.
-    /// Ejemplo: "Gaming PC Starter", "Workstation Pro", etc.
+    /// Combo — paquete de componentes vendidos juntos con precio especial (esquema catalogo).
     /// </summary>
     public class Combo
     {
@@ -22,9 +21,14 @@ namespace EcommerceApp.Models
 
         [Required]
         [Column(TypeName = "decimal(18,2)")]
-        [Display(Name = "Precio de Venta (MXN)")]
+        [Display(Name = "Precio de Venta (Bs.)")]
         [Range(0.01, 9999999.99)]
         public decimal PrecioVenta { get; set; }
+
+        [Column(TypeName = "decimal(5,2)")]
+        [Display(Name = "Descuento (%)")]
+        [Range(0, 100)]
+        public decimal Descuento { get; set; } = 0;
 
         [Display(Name = "URL de imagen")]
         public string? ImageUrl { get; set; }
@@ -32,6 +36,7 @@ namespace EcommerceApp.Models
         [Display(Name = "Activo")]
         public bool Activo { get; set; } = true;
 
+        [Range(0, int.MaxValue)]
         [Display(Name = "Stock Disponible")]
         public int Stock { get; set; } = 0;
 
@@ -41,7 +46,7 @@ namespace EcommerceApp.Models
         // Relación con componentes
         public ICollection<ComboComponente> ComboComponentes { get; set; } = new List<ComboComponente>();
 
-        // Propiedad calculada (no mapeada) — suma de precios de componentes
+        // Propiedades calculadas (no mapeadas)
         [NotMapped]
         public decimal PrecioBase => ComboComponentes.Sum(cc =>
             (cc.Componente?.Precio ?? 0) * cc.Cantidad);

@@ -1,0 +1,56 @@
+% ============================================================================
+%  CAPÍTULO I: INTRODUCCIÓN
+% ============================================================================
+
+\section{Contexto y problema}
+
+La industria del hardware y los accesorios gamer constituye uno de los segmentos de mayor crecimiento dentro del comercio electrónico en América Latina.
+Las pequeñas y medianas empresas (PYME) del sector enfrentan el reto de administrar catálogos extensos de componentes ---procesadores, tarjetas gráficas, unidades de almacenamiento, memorias RAM, fuentes de alimentación, periféricos y sistemas de refrigeración--- manteniendo al mismo tiempo la integridad de los datos, la trazabilidad de las ventas y la coherencia del inventario.
+
+El presente proyecto documenta el diseño, la auditoría y la refactorización de la base de datos del sistema \textbf{TechParts ERP}, una aplicación web de comercio electrónico para hardware gamer desarrollada con ASP.NET Core MVC (.NET 10), Entity Framework Core 10 y Npgsql sobre PostgreSQL hospedado en Supabase.
+La aplicación permite a los clientes explorar un catálogo de componentes individuales y combos de hardware, gestionar un carrito de compras, realizar pedidos y hacer seguimiento del estado de sus órdenes; a los administradores les brinda herramientas de gestión de inventario, configuración de combos y seguimiento de pedidos.
+
+El estado inicial (``ANTES'') de la base de datos presentaba deficiencias estructurales significativas:
+ausencia total de restricciones \texttt{CHECK} y \texttt{UNIQUE},
+tres tablas sin relaciones foráneas (\texttt{Products}, \texttt{Proveedores}, \texttt{Sucursales}),
+columnas duplicadas en \texttt{AspNetUsers} (\texttt{FullName} y \texttt{NombreCompleto}),
+referencias polimórficas sin integridad referencial en \texttt{PedidoItems},
+tipos de dato no normalizados (\texttt{Tipo} y \texttt{Marca} como texto libre en \texttt{Componentes}),
+y la ausencia de vistas analíticas, funciones almacenadas, procedimientos transaccionales e índices de rendimiento.
+
+\subsection{Justificación}
+
+El rediseño de la base de datos se justifica desde tres dimensiones:
+
+\begin{enumerate}
+  \item \textbf{Académica:} La materia Base de Datos II exige la aplicación de los estándares de la Primera, Segunda y Tercera Forma Normal (1FN, 2FN, 3FN), el uso de restricciones declarativas (\texttt{CHECK}, \texttt{UNIQUE}, \texttt{NOT NULL}), la implementación de vistas, funciones, procedimientos almacenados, \textit{triggers}, índices y políticas de seguridad, aspectos todos ellos ausentes en el estado inicial del sistema.
+
+  \item \textbf{Técnica:} La ausencia de restricciones declarativas traslada la responsabilidad de la integridad de datos exclusivamente a la capa de aplicación (C\# / EF Core), lo que genera riesgo de inconsistencias cuando se accede a la base de datos por otros canales (SQL directo, migraciones, herramientas ETL).
+  Además, la ausencia de índices y procedimientos transaccionales compromete el rendimiento y la consistencia bajo carga concurrente.
+
+  \item \textbf{Estratégica (ODS):} Una base de datos robusta contribuye al \textbf{ODS 8} (Trabajo decente y crecimiento económico) al posibilitar que la PYME opere de manera eficiente y escalable, y al \textbf{ODS 12} (Producción y consumo responsables) al garantizar la veracidad del inventario y evitar la sobreventa de productos.
+\end{enumerate}
+
+\subsection{Alcance del documento}
+
+Este informe cubre las cuatro fases del rediseño:
+\textbf{(1)} diagnóstico del estado ANTES con modelo Entidad-Relación (DER),
+\textbf{(2)} normalización y propuesta del estado DESPUÉS con diccionario de datos completo,
+\textbf{(3)} script SQL ejecutable con DDL, datos realistas y diez consultas de inteligencia de negocios, y
+\textbf{(4)} transacciones, bloqueos pesimistas e indexación para optimización del rendimiento.
+
+\subsection{Descripción del sistema}
+
+TechParts ERP es una aplicación web de tipo \textit{business-to-consumer} (B2C) orientada a la venta de componentes de computación gamer de alta gama.
+Sus principales entidades de negocio son:
+
+\begin{itemize}
+  \item \textbf{Componentes:} unidades de hardware individuales (GPUs, CPUs, SSDs, RAM, fuentes de poder, monitores, periféricos y refrigeración líquida).
+  \item \textbf{Combos:} agrupaciones predefinidas de componentes vendidas como paquete con descuento.
+  \item \textbf{Pedidos y PedidoItems:} órdenes de compra de clientes con sus líneas de detalle.
+  \item \textbf{CarritosAbandonados:} registro de sesiones de compra no completadas para análisis de conversión.
+  \item \textbf{Sucursales y Proveedores:} entidades logísticas de soporte al inventario.
+\end{itemize}
+
+El sistema emplea ASP.NET Identity para la gestión de usuarios y roles (\textit{GerenteGeneral}, \textit{GerenteRegional}, \textit{GerenteSucursal}, \textit{Vendedor}, \textit{Comercial}, \textit{Cliente}, \textit{Admin}).
+La autenticación se realiza mediante cookies con renovación de sesión; la autorización es basada en roles.

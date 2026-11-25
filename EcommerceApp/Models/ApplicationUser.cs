@@ -4,18 +4,15 @@ namespace EcommerceApp.Models
 {
     public class ApplicationUser : IdentityUser
     {
-        // --- Datos personales ---
+        // --- Datos personales (3FN: columna única NombreCompleto) ---
         public string? NombreCompleto { get; set; }
 
-        // Mantener FullName para compatibilidad con datos existentes
-        public string? FullName { get; set; }
-
-        // --- Jerarquía organizacional (nullable según el rol) ---
-        // Solo para GerenteRegional: indica qué región supervisa
+        // --- Jerarquía organizacional con FKs reales hacia esquema operaciones ---
         public int? RegionId { get; set; }
+        public Region? Region { get; set; }
 
-        // Solo para GerenteSucursal y Vendedor: sucursal a la que pertenecen
         public int? SucursalId { get; set; }
+        public Sucursal? Sucursal { get; set; }
 
         // Código único alfanumérico para autocompletar en el POS (solo Clientes)
         public string? CodigoCliente { get; set; }
@@ -23,4 +20,3 @@ namespace EcommerceApp.Models
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     }
 }
-

@@ -1,0 +1,45 @@
+% ============================================================================
+%  CONCLUSIONES
+% ============================================================================
+
+\section{Conclusiones}
+
+El presente trabajo document\'o el proceso completo de auditor\'ia, normalización y redise\~no de la base de datos del sistema TechParts ERP, demostrando la aplicaci\'on pr\'actica de los fundamentos te\'oricos de la materia Base de Datos II.
+
+\subsection{Conclusi\'on 1 --- Importancia de las restricciones declarativas}
+
+La auditor\'ia del estado ANTES revel\'o que la base de datos operaba con \textbf{cero restricciones CHECK y UNIQUE} sobre 17 tablas.
+Trasladar toda la validaci\'on a la capa de aplicaci\'on (C\# / EF Core) crea una dependencia cr\'itica: cualquier acceso directo a PostgreSQL (migraciones, herramientas ETL, consultas manuales) puede insertar datos inv\'alidos sin que el motor los detecte.
+La implementaci\'on de 12 restricciones CHECK y 6 restricciones UNIQUE en el estado DESPU\'ES traslada esta responsabilidad al nivel m\'as apropiado: el motor de base de datos.
+
+\subsection{Conclusi\'on 2 --- Normalizaci\'on como herramienta de integridad}
+
+La violaci\'on de la 3FN detectada en \texttt{AspNetUsers} (columnas \texttt{FullName} y \texttt{NombreCompleto}) y la violaci\'on de la 2FN en \texttt{Componentes} (atributos \texttt{Tipo} y \texttt{Marca} como texto libre) demuestran que la normalizaci\'on no es una formalidad acad\'emica sino una herramienta pr\'actica para evitar anomal\'ias de modificaci\'on y actualización que comprometen la consistencia de los datos en entornos de producci\'on.
+
+\subsection{Conclusi\'on 3 --- Bloqueo pesimista para concurrencia}
+
+La ausencia de un mecanismo de bloqueo de stock en el estado ANTES creaba una condici\'on de carrera cr\'itica: dos clientes podían comprar simult\'aneamente el \'ultimo componente disponible.
+El procedimiento \texttt{sp\_confirmar\_venta} con \texttt{SELECT FOR UPDATE} resuelve este problema a nivel de motor, garantizando que el decremento de stock sea at\'omico y consistente bajo cualquier nivel de concurrencia.
+
+\subsection{Conclusi\'on 4 --- Objetos avanzados como valor de negocio}
+
+Las cuatro vistas anal\'iticas, las dos funciones escalares, el procedimiento transaccional y los triggers de auditor\'ia no son solo requisitos acad\'emicos: representan l\'ogica de negocio centralizada en la base de datos, reutilizable por cualquier aplicaci\'on que acceda al mismo PostgreSQL, independientemente del lenguaje o framework empleado.
+Esto reduce la duplicaci\'on de c\'odigo y garantiza la uniformidad de las reglas de negocio.
+
+\subsection{Conclusi\'on 5 --- Indexaci\'on y rendimiento}
+
+Los siete \'indices definidos (seis B-Tree y uno GIN) demostraron una mejora del 99.9\% en el tiempo de ejecuci\'on de la consulta de productos por categor\'ia.
+Este resultado ilustra el principio fundamental de la optimizaci\'on de consultas: el dise\~no f\'isico (gu\'ia de acceso) debe seguir a los patrones de acceso observados en las cargas de trabajo reales, no aplicarse de forma indiscriminada.
+
+\subsection{Conclusi\'on 6 --- Separaci\'on de esquemas como buena pr\'actica}
+
+La organizaci\'on del modelo en cinco esquemas (\texttt{catalogo}, \texttt{ventas}, \texttt{operaciones}, \texttt{seguridad}, \texttt{auditoria}) establece l\'imites claros de responsabilidad, facilita la asignaci\'on granular de permisos a roles de base de datos y prepara la arquitectura para una eventual separaci\'on de microservicios sin romper los contratos de datos existentes.
+
+\subsection{Recomendaciones}
+
+\begin{enumerate}
+  \item Implementar Row Level Security (RLS) de Supabase en el esquema \texttt{auditoria} para restringir el acceso a registros de auditor\'ia exclusivamente al rol administrador.
+  \item Evaluar la implementaci\'on de particionamiento por rango de fecha en la tabla \texttt{ventas.Pedidos} una vez que el volumen supere el mill\'on de registros.
+  \item Configurar una r\'eplica de lectura en Supabase y redirigir las consultas anal\'iticas (consultas 1-10) a la r\'eplica para no interferir con las transacciones de ventas.
+  \item Automatizar la ejecuci\'on de \texttt{VACUUM ANALYZE} sobre las tablas de ventas mediante el autovacuum de PostgreSQL, ajustando los par\'ametros de umbral para tablas de alta escritura.
+\end{enumerate}

@@ -72,6 +72,7 @@ else
                 <div class="suc-name">@s.Nombre</div>
                 <div class="suc-meta">
                     @if (!string.IsNullOrEmpty(s.Ciudad)) { <span>📍 @s.Ciudad@(s.Estado != null ? ", " + s.Estado : "")</span> }
+                    @if (s.Region != null) { <span>🗺️ Región: @s.Region.Nombre (@s.Region.Codigo)</span> }
                     @if (!string.IsNullOrEmpty(s.Direccion)) { <span>🏠 @s.Direccion</span> }
                     @if (!string.IsNullOrEmpty(s.Telefono)) { <span>📞 @s.Telefono</span> }
                     @if (!string.IsNullOrEmpty(s.Email)) { <span>✉️ @s.Email</span> }

@@ -4,7 +4,7 @@ using System.ComponentModel.DataAnnotations.Schema;
 namespace EcommerceApp.Models
 {
     /// <summary>
-    /// Ítem individual dentro de un pedido. Snapshot del precio al momento de compra.
+    /// Ítem individual dentro de un pedido con FKs exclusivas a Componente o Combo (esquema ventas).
     /// </summary>
     public class PedidoItem
     {
@@ -14,14 +14,14 @@ namespace EcommerceApp.Models
         public int PedidoId { get; set; }
         public Pedido? Pedido { get; set; }
 
+        public int? ComponenteId { get; set; }
+        public Componente? Componente { get; set; }
+
+        public int? ComboId { get; set; }
+        public Combo? Combo { get; set; }
+
         [Required, MaxLength(200)]
         public string ProductoNombre { get; set; } = string.Empty;
-
-        /// <summary>"componente" | "combo"</summary>
-        [MaxLength(20)]
-        public string Tipo { get; set; } = "componente";
-
-        public int ProductoId { get; set; }
 
         [Column(TypeName = "decimal(18,2)")]
         public decimal PrecioUnitario { get; set; }
@@ -32,5 +32,8 @@ namespace EcommerceApp.Models
         public decimal Subtotal { get; set; }
 
         public string? ImageUrl { get; set; }
+
+        [NotMapped]
+        public string Tipo => ComboId.HasValue ? "combo" : "componente";
     }
 }

@@ -4,7 +4,7 @@ using System.ComponentModel.DataAnnotations.Schema;
 namespace EcommerceApp.Models
 {
     /// <summary>
-    /// Componente de hardware (CPU, GPU, RAM, etc.) — entidad principal del catálogo.
+    /// Componente de hardware normalizado en 3FN (esquema catalogo).
     /// </summary>
     public class Componente
     {
@@ -20,15 +20,21 @@ namespace EcommerceApp.Models
         public string Descripcion { get; set; } = string.Empty;
 
         [Required]
-        [Display(Name = "Tipo / Categoría")]
-        public string Tipo { get; set; } = string.Empty;
+        [Display(Name = "Categoría")]
+        public int CategoriaId { get; set; }
+        public Categoria? Categoria { get; set; }
 
-        [MaxLength(100)]
+        [Required]
         [Display(Name = "Marca")]
-        public string? Marca { get; set; }
+        public int MarcaId { get; set; }
+        public Marca? Marca { get; set; }
+
+        [Display(Name = "Proveedor")]
+        public int? ProveedorId { get; set; }
+        public Proveedor? Proveedor { get; set; }
 
         [Required, Range(0.01, 9999999.99)]
-        [Display(Name = "Precio (MXN)")]
+        [Display(Name = "Precio (Bs.)")]
         [Column(TypeName = "decimal(18,2)")]
         public decimal Precio { get; set; }
 
@@ -36,11 +42,21 @@ namespace EcommerceApp.Models
         [Display(Name = "Stock")]
         public int Stock { get; set; }
 
+        [Required, Range(0, int.MaxValue)]
+        [Display(Name = "Stock Mínimo")]
+        public int StockMinimo { get; set; } = 5;
+
         [Display(Name = "URL de imagen")]
         public string? ImageUrl { get; set; }
 
         [Display(Name = "Especificaciones técnicas")]
         public string? Especificaciones { get; set; }
+
+        [Required, MaxLength(20)]
+        [Display(Name = "Estado de Obsolescencia")]
+        public string EstadoObsolescencia { get; set; } = "Vigente";
+
+        public bool Activo { get; set; } = true;
 
         public DateTime CreadoEn { get; set; } = DateTime.UtcNow;
         public DateTime? ActualizadoEn { get; set; }

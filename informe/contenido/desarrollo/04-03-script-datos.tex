@@ -1,0 +1,222 @@
+% ============================================================================
+%  04-03: SCRIPT SQL Y DATOS REALISTAS
+% ============================================================================
+
+\section{Script SQL y datos de prueba realistas}
+
+\subsection{Creaci\'on de esquemas y tablas}
+
+El siguiente bloque DDL crea los cinco esquemas de negocio, las tablas normalizadas con todas sus restricciones declarativas y las relaciones foráneas con comportamientos \texttt{ON DELETE} apropiados.
+El script completo y ejecutable se incluye en el Anexo A (\texttt{script\_bd2\_completo.sql}).
+
+\begin{lstlisting}[language=SQL, caption={DDL: Esquemas, tablas de cat\'alogo y restricciones}, label=lst:ddl-catalogo]
+-- =============================================
+-- ESQUEMAS DE NEGOCIO
+-- =============================================
+CREATE SCHEMA IF NOT EXISTS catalogo;
+CREATE SCHEMA IF NOT EXISTS ventas;
+CREATE SCHEMA IF NOT EXISTS operaciones;
+CREATE SCHEMA IF NOT EXISTS auditoria;
+
+-- =============================================
+-- ESQUEMA CATALOGO
+-- =============================================
+CREATE TABLE catalogo."Categorias" (
+  "Id"     SERIAL PRIMARY KEY,
+  "Nombre" VARCHAR(60)  NOT NULL,
+  "Slug"   VARCHAR(80)  NOT NULL,
+  CONSTRAINT uq_categorias_nombre UNIQUE ("Nombre"),
+  CONSTRAINT uq_categorias_slug   UNIQUE ("Slug")
+);
+
+CREATE TABLE catalogo."Marcas" (
+  "Id"     SERIAL PRIMARY KEY,
+  "Nombre" VARCHAR(80) NOT NULL,
+  "Pais"   VARCHAR(60),
+  CONSTRAINT uq_marcas_nombre UNIQUE ("Nombre")
+);
+
+CREATE TABLE catalogo."Componentes" (
+  "Id"          SERIAL PRIMARY KEY,
+  "Nombre"      VARCHAR(200)   NOT NULL,
+  "Descripcion" TEXT,
+  "CategoriaId" INTEGER        NOT NULL,
+  "MarcaId"     INTEGER        NOT NULL,
+  "Precio"      NUMERIC(10,2)  NOT NULL,
+  "Stock"       INTEGER        NOT NULL DEFAULT 0,
+  "ImagenUrl"   VARCHAR(500),
+  "Activo"      BOOLEAN        NOT NULL DEFAULT TRUE,
+  "CreadoEn"    TIMESTAMPTZ    NOT NULL DEFAULT NOW(),
+  CONSTRAINT ck_componentes_precio CHECK ("Precio" > 0),
+  CONSTRAINT ck_componentes_stock  CHECK ("Stock"  >= 0),
+  CONSTRAINT fk_comp_categoria
+    FOREIGN KEY ("CategoriaId")
+    REFERENCES catalogo."Categorias"("Id") ON DELETE RESTRICT,
+  CONSTRAINT fk_comp_marca
+    FOREIGN KEY ("MarcaId")
+    REFERENCES catalogo."Marcas"("Id") ON DELETE RESTRICT
+);
+
+CREATE TABLE catalogo."Combos" (
+  "Id"          SERIAL PRIMARY KEY,
+  "Nombre"      VARCHAR(200)   NOT NULL,
+  "Descripcion" TEXT,
+  "PrecioBase"  NUMERIC(10,2)  NOT NULL,
+  "Descuento"   NUMERIC(5,2)   NOT NULL DEFAULT 0,
+  "Activo"      BOOLEAN        NOT NULL DEFAULT TRUE,
+  CONSTRAINT ck_combos_precio     CHECK ("PrecioBase" > 0),
+  CONSTRAINT ck_combos_descuento  CHECK ("Descuento" >= 0 AND "Descuento" <= 100)
+);
+
+CREATE TABLE catalogo."ComboComponentes" (
+  "ComboId"      INTEGER NOT NULL,
+  "ComponenteId" INTEGER NOT NULL,
+  "Cantidad"     INTEGER NOT NULL,
+  CONSTRAINT pk_combo_comp   PRIMARY KEY ("ComboId", "ComponenteId"),
+  CONSTRAINT ck_cc_cantidad  CHECK ("Cantidad" > 0),
+  CONSTRAINT fk_cc_combo
+    FOREIGN KEY ("ComboId")
+    REFERENCES catalogo."Combos"("Id") ON DELETE CASCADE,
+  CONSTRAINT fk_cc_componente
+    FOREIGN KEY ("ComponenteId")
+    REFERENCES catalogo."Componentes"("Id") ON DELETE RESTRICT
+);
+\end{lstlisting}
+
+\begin{lstlisting}[language=SQL, caption={DDL: Esquema ventas --- Pedidos y PedidoItems normalizados}, label=lst:ddl-ventas]
+-- =============================================
+-- ESQUEMA VENTAS
+-- =============================================
+CREATE TABLE ventas."Pedidos" (
+  "Id"           SERIAL PRIMARY KEY,
+  "UserId"       TEXT           NOT NULL,
+  "FechaPedido"  TIMESTAMPTZ    NOT NULL DEFAULT NOW(),
+  "Total"        NUMERIC(12,2)  NOT NULL,
+  "MetodoPago"   SMALLINT       NOT NULL,
+  "Estado"       SMALLINT       NOT NULL DEFAULT 0,
+  "Notas"        TEXT,
+  CONSTRAINT ck_pedidos_total   CHECK ("Total" >= 0),
+  CONSTRAINT ck_pedidos_metodo  CHECK ("MetodoPago" IN (0,1,2,3)),
+  CONSTRAINT ck_pedidos_estado  CHECK ("Estado" IN (0,1,2,3,4)),
+  CONSTRAINT fk_pedidos_user
+    FOREIGN KEY ("UserId")
+    REFERENCES "AspNetUsers"("Id") ON DELETE RESTRICT
+);
+
+CREATE TABLE ventas."PedidoItems" (
+  "Id"             SERIAL        PRIMARY KEY,
+  "PedidoId"       INTEGER       NOT NULL,
+  "ComponenteId"   INTEGER,
+  "ComboId"        INTEGER,
+  "Cantidad"       INTEGER       NOT NULL,
+  "PrecioUnitario" NUMERIC(10,2) NOT NULL,
+  CONSTRAINT ck_pi_cantidad  CHECK ("Cantidad" > 0),
+  CONSTRAINT ck_pi_precio    CHECK ("PrecioUnitario" > 0),
+  CONSTRAINT ck_pi_exclusivo CHECK (
+    ("ComponenteId" IS NOT NULL AND "ComboId" IS NULL) OR
+    ("ComboId"      IS NOT NULL AND "ComponenteId" IS NULL)
+  ),
+  CONSTRAINT fk_pi_pedido
+    FOREIGN KEY ("PedidoId")
+    REFERENCES ventas."Pedidos"("Id") ON DELETE CASCADE,
+  CONSTRAINT fk_pi_componente
+    FOREIGN KEY ("ComponenteId")
+    REFERENCES catalogo."Componentes"("Id") ON DELETE RESTRICT,
+  CONSTRAINT fk_pi_combo
+    FOREIGN KEY ("ComboId")
+    REFERENCES catalogo."Combos"("Id") ON DELETE RESTRICT
+);
+
+CREATE TABLE ventas."CarritosAbandonados" (
+  "Id"           SERIAL      PRIMARY KEY,
+  "UserId"       TEXT        NOT NULL,
+  "ItemsJson"    JSONB       NOT NULL DEFAULT '[]'::jsonb,
+  "FechaCreado"  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  "FechaExpira"  TIMESTAMPTZ,
+  CONSTRAINT fk_carritos_user
+    FOREIGN KEY ("UserId")
+    REFERENCES "AspNetUsers"("Id") ON DELETE CASCADE
+);
+\end{lstlisting}
+
+\subsection{Datos de prueba realistas --- Hardware Gamer}
+
+El conjunto de datos semilla incluye 15 componentes reales de alta gama, 3 combos predefinidos, 5 sucursales, 10 proveedores y 10 pedidos de demostración.
+
+\begin{lstlisting}[language=SQL, caption={DML: Categorías, Marcas y Componentes gamer}, label=lst:dml-seed]
+-- CATEGORIAS
+INSERT INTO catalogo."Categorias" ("Nombre", "Slug") VALUES
+  ('Tarjetas de Video',    'tarjetas-de-video'),
+  ('Procesadores',         'procesadores'),
+  ('Almacenamiento SSD',   'almacenamiento-ssd'),
+  ('Placas Madre',         'placas-madre'),
+  ('Memoria RAM',          'memoria-ram'),
+  ('Fuentes de Poder',     'fuentes-de-poder'),
+  ('Monitores',            'monitores'),
+  ('Perifericos',          'perifericos'),
+  ('Refrigeracion Liquida','refrigeracion-liquida'),
+  ('Gabinetes',            'gabinetes');
+
+-- MARCAS
+INSERT INTO catalogo."Marcas" ("Nombre", "Pais") VALUES
+  ('NVIDIA',       'Estados Unidos'),
+  ('ASUS ROG',     'Taiwan'),
+  ('Samsung',      'Corea del Sur'),
+  ('G.SKILL',      'Taiwan'),
+  ('Corsair',      'Estados Unidos'),
+  ('LG',           'Corea del Sur'),
+  ('Logitech',     'Suiza'),
+  ('Cooler Master','Taiwan'),
+  ('Razer',        'Estados Unidos'),
+  ('AMD',          'Estados Unidos'),
+  ('Lian Li',      'Taiwan');
+
+-- COMPONENTES (15 productos gamer de alta gama)
+INSERT INTO catalogo."Componentes"
+  ("Nombre","Descripcion","CategoriaId","MarcaId","Precio","Stock","ImagenUrl") VALUES
+('NVIDIA GeForce RTX 5080 Ti 16GB GDDR7',
+ 'GPU de ultima generacion con 16 GB GDDR7, ray tracing de 5a generacion y DLSS 4',
+ 1,1, 1450.00, 12, 'https://example.com/rtx5080ti.jpg'),
+('Intel Core Ultra 9 285K 24 nucleos',
+ 'Procesador de escritorio de maxima gama con 8 nucleos P y 16 nucleos E, 36 MB cache',
+ 2,2,  620.00, 18, 'https://example.com/corei9285k.jpg'),
+('Samsung 990 Pro 2TB NVMe PCIe 5.0',
+ 'SSD M.2 con velocidades de lectura secuencial de hasta 7450 MB/s',
+ 3,3,  215.00, 35, 'https://example.com/990pro2tb.jpg'),
+('ASUS ROG Maximus Z890 Hero ATX',
+ 'Placa madre Intel Z890 con DDR5, Thunderbolt 4 y Wi-Fi 7',
+ 4,2,  620.00, 10, 'https://example.com/rogz890.jpg'),
+('G.SKILL Trident Z5 RGB 64GB DDR5-6400',
+ 'Kit dual-channel 2x32GB DDR5 con XMP 3.0 y latencia CL32',
+ 5,4,  280.00, 22, 'https://example.com/tridentz5.jpg'),
+('Corsair HX1500i Platinum 1500W',
+ 'Fuente ATX3.1 con conector PCIe 5.0 nativo, 80 Plus Platinum y control por iCUE',
+ 6,5,  380.00,  8, 'https://example.com/hx1500i.jpg'),
+('LG UltraGear OLED 27GS95QE 27" 240Hz',
+ 'Monitor OLED QHD 2560x1440 con 0.03ms GtG y DisplayHDR True Black 400',
+ 7,6,  750.00,  7, 'https://example.com/lg27gs95.jpg'),
+('Logitech G Pro X Superlight 2 DEX',
+ 'Mouse inalambrico 32000 DPI sensor HERO 2 de 60g para esports profesional',
+ 8,7,  165.00, 30, 'https://example.com/gprosuperlight.jpg'),
+('Cooler Master MasterLiquid 360L Core',
+ 'Refrigeracion liquida AIO 360mm con bomba de 3a generacion y cabezal ARGB',
+ 9,8,  175.00, 15, 'https://example.com/ml360l.jpg'),
+('Razer BlackWidow V4 Pro HyperSpeed',
+ 'Teclado mecanico inalambrico con switches Razer Green, rueda multimedia y RGB Chroma',
+ 8,9,  230.00, 20, 'https://example.com/bwv4pro.jpg'),
+('AMD Ryzen 9 9950X 16 nucleos AM5',
+ 'CPU AMD Zen 5 de 16 nucleos y 32 hilos, TDP 170W, compatibilidad AM5',
+ 2,10, 580.00, 14, 'https://example.com/r99950x.jpg'),
+('ASUS ROG Crosshair X670E Hero AM5',
+ 'Placa madre AMD X670E para Ryzen 7000/9000, DDR5, PCIe 5.0 y Wi-Fi 6E',
+ 4,2,  490.00, 11, 'https://example.com/crosshairx670.jpg'),
+('AMD Radeon RX 7900 XTX 24GB GDDR6',
+ 'GPU AMD RDNA3 de 24 GB con soporte DisplayPort 2.1 y AV1 hardware decode',
+ 1,10, 870.00, 9,  'https://example.com/rx7900xtx.jpg'),
+('Corsair MP700 PRO SE 2TB PCIe 5.0',
+ 'SSD M.2 2280 con heatspreader, lectura hasta 12400 MB/s y escritura 11800 MB/s',
+ 3,5,  290.00, 25, 'https://example.com/mp700pro.jpg'),
+('Lian Li O11 Dynamic EVO XL ATX',
+ 'Gabinete ATX XL con soporte radiadores 480mm, vidrio templado y manejo de cables oculto',
+ 10,11, 170.00, 13, 'https://example.com/o11evoxl.jpg');
+\end{lstlisting}

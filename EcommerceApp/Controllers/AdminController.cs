@@ -15,7 +15,7 @@ namespace EcommerceApp.Controllers
             var user = await userManager.GetUserAsync(User);
             var roles = await userManager.GetRolesAsync(user!);
 
-            ViewBag.NombreUsuario = user?.NombreCompleto ?? user?.FullName ?? user?.Email;
+            ViewBag.NombreUsuario = user?.NombreCompleto ?? user?.Email;
             ViewBag.Rol = roles.FirstOrDefault() ?? "Sin rol";
             ViewBag.SucursalId = user?.SucursalId;
             ViewBag.RegionId = user?.RegionId;
@@ -25,7 +25,10 @@ namespace EcommerceApp.Controllers
 
             // KPIs básicos
             var totalInventario = await db.Componentes.SumAsync(c => c.Stock);
-            var ventasMes = await db.Pedidos.Where(p => p.FechaPedido >= inicioMes && p.Estado == EstadoPedido.Completado).SumAsync(p => p.Total);
+            var ventasMes = await db.Pedidos
+                .Where(p => p.FechaPedido >= inicioMes &&
+                            (p.Estado == EstadoPedido.Completado || p.Estado == EstadoPedido.Entregado))
+                .SumAsync(p => p.Total);
             var clientes = await userManager.GetUsersInRoleAsync("Cliente");
             var sucursales = await db.Sucursales.CountAsync(s => s.Activa);
 
@@ -35,9 +38,14 @@ namespace EcommerceApp.Controllers
             ViewBag.TotalSucursales = sucursales;
 
             // Alertas
-            var stockCritico = await db.Componentes.Where(c => c.Stock <= 10).OrderBy(c => c.Stock).Take(5).ToListAsync();
+            var stockCritico = await db.Componentes
+                .Include(c => c.Categoria)
+                .Where(c => c.Stock <= c.StockMinimo)
+                .OrderBy(c => c.Stock)
+                .Take(5)
+                .ToListAsync();
             var carritosActivos = await db.CarritosAbandonados.CountAsync(c => !c.Convertido);
-            
+
             ViewBag.StockCritico = stockCritico;
             ViewBag.CarritosActivos = carritosActivos;
 
@@ -56,8 +64,11 @@ namespace EcommerceApp.Controllers
             {
                 var m = hoy.AddMonths(-i);
                 var start = new DateTime(m.Year, m.Month, 1, 0, 0, 0, DateTimeKind.Utc);
-                var end = start.AddMonths(1).AddDays(-1);
-                var sum = await db.Pedidos.Where(p => p.FechaPedido >= start && p.FechaPedido <= end && p.Estado == EstadoPedido.Completado).SumAsync(p => p.Total);
+                var end = start.AddMonths(1);
+                var sum = await db.Pedidos
+                    .Where(p => p.FechaPedido >= start && p.FechaPedido < end &&
+                                (p.Estado == EstadoPedido.Completado || p.Estado == EstadoPedido.Entregado))
+                    .SumAsync(p => p.Total);
                 ventasMeses.Add(sum);
                 labelsMeses.Add(start.ToString("MMM yyyy"));
             }
@@ -76,7 +87,7 @@ namespace EcommerceApp.Controllers
 
             // Datos para Dona (Métodos de pago)
             var metodos = await db.Pedidos
-                .Where(p => p.Estado == EstadoPedido.Completado)
+                .Where(p => p.Estado == EstadoPedido.Completado || p.Estado == EstadoPedido.Entregado)
                 .GroupBy(p => p.MetodoPago)
                 .Select(g => new { Metodo = g.Key, Total = g.Count() })
                 .ToListAsync();
@@ -91,47 +102,36 @@ namespace EcommerceApp.Controllers
         {
             try
             {
-                await db.Database.MigrateAsync();
-
-                // 1. Sucursales
-                var sucursales = new List<Sucursal>
+                if (!await db.Database.CanConnectAsync())
                 {
-                    new() { Nombre="Sucursal Centro", Direccion="Plaza Principal 14 de Septiembre", Ciudad="Cochabamba", Telefono="44556677", Email="centro@techparts.com.bo", Activa=true },
-                    new() { Nombre="Sucursal Norte", Direccion="Av. América y Libertador", Ciudad="Cochabamba", Telefono="44556678", Email="norte@techparts.com.bo", Activa=true },
-                    new() { Nombre="Sucursal Sur", Direccion="Av. Panamericana esq. 6 de Agosto", Ciudad="Cochabamba", Telefono="44556679", Email="sur@techparts.com.bo", Activa=true },
-                    new() { Nombre="Sucursal Quillacollo", Direccion="Plaza Bolívar", Ciudad="Cochabamba", Telefono="44556680", Email="quillacollo@techparts.com.bo", Activa=true },
-                    new() { Nombre="Sucursal Sacaba", Direccion="Plaza Principal de Sacaba", Ciudad="Cochabamba", Telefono="44556681", Email="sacaba@techparts.com.bo", Activa=true }
-                };
-                foreach (var s in sucursales)
-                {
-                    var exists = await db.Sucursales.FirstOrDefaultAsync(x => x.Nombre == s.Nombre);
-                    if (exists == null) db.Sucursales.Add(s);
-                    else { exists.Direccion = s.Direccion; exists.Telefono = s.Telefono; }
+                    TempData["Error"] = "No hay conexión activa con Supabase PostgreSQL.";
+                    return RedirectToAction(nameof(Dashboard));
                 }
 
-                // 2. Proveedores
-                var proveedores = new List<Proveedor>
+                if (!await db.Regiones.AnyAsync())
                 {
-                    new() { Nombre="NVIDIA Latin America", Contacto="Carlos Mendoza", Telefono="800123456", Email="ventas@nvidia.la", Activo=true },
-                    new() { Nombre="AMD Bolivia", Contacto="Ana Suárez", Telefono="800654321", Email="distribucion@amd.bo", Activo=true },
-                    new() { Nombre="Intel Andina", Contacto="Luis Fernandez", Telefono="800111222", Email="sales@intel.com.bo", Activo=true },
-                    new() { Nombre="ASUS ROG Latam", Contacto="Pedro Gómez", Telefono="800333444", Email="rog@asus.la", Activo=true },
-                    new() { Nombre="Gigabyte AORUS", Contacto="Sofía Ríos", Telefono="800555666", Email="aorus@gigabyte.com", Activo=true },
-                    new() { Nombre="MSI Gaming", Contacto="Jorge Vargas", Telefono="800777888", Email="latam@msi.com", Activo=true },
-                    new() { Nombre="Corsair Distribución", Contacto="Miguel Rojas", Telefono="800999000", Email="b2b@corsair.com", Activo=true },
-                    new() { Nombre="Kingston Technology", Contacto="Laura Pineda", Telefono="800222333", Email="ventas@kingston.la", Activo=true },
-                    new() { Nombre="Samsung Electronics", Contacto="Roberto Díaz", Telefono="800444555", Email="ssd@samsung.com", Activo=true },
-                    new() { Nombre="Logitech G", Contacto="Carla Ruiz", Telefono="800666777", Email="gaming@logitech.bo", Activo=true }
-                };
-                foreach (var p in proveedores)
-                {
-                    var exists = await db.Proveedores.FirstOrDefaultAsync(x => x.Nombre == p.Nombre);
-                    if (exists == null) db.Proveedores.Add(p);
-                    else { exists.Contacto = p.Contacto; exists.Telefono = p.Telefono; }
+                    db.Regiones.AddRange(
+                        new Region { Nombre = "Cochabamba", Codigo = "CBB" },
+                        new Region { Nombre = "La Paz",     Codigo = "LPZ" },
+                        new Region { Nombre = "Santa Cruz", Codigo = "SCZ" },
+                        new Region { Nombre = "Oruro",      Codigo = "ORU" },
+                        new Region { Nombre = "Tarija",     Codigo = "TJA" }
+                    );
+                    await db.SaveChangesAsync();
                 }
 
-                await db.SaveChangesAsync();
-                TempData["Exito"] = "¡Base de datos migrada y sincronizada con éxito (Sucursales y Proveedores listos)!";
+                if (!await db.Sucursales.AnyAsync())
+                {
+                    var regCbb = await db.Regiones.FirstOrDefaultAsync(r => r.Codigo == "CBB");
+                    db.Sucursales.AddRange(
+                        new Sucursal { Nombre = "Sucursal Centro",     Direccion = "Plaza Principal 14 de Septiembre", Ciudad = "Cochabamba", Estado = "Cochabamba", RegionId = regCbb?.Id, Telefono = "44556677", Email = "centro@techparts.com.bo", Activa = true },
+                        new Sucursal { Nombre = "Sucursal Norte",      Direccion = "Av. América y Libertador",         Ciudad = "Cochabamba", Estado = "Cochabamba", RegionId = regCbb?.Id, Telefono = "44556678", Email = "norte@techparts.com.bo", Activa = true },
+                        new Sucursal { Nombre = "Sucursal Sur",        Direccion = "Av. Panamericana esq. 6 de Agosto",Ciudad = "Cochabamba", Estado = "Cochabamba", RegionId = regCbb?.Id, Telefono = "44556679", Email = "sur@techparts.com.bo", Activa = true }
+                    );
+                    await db.SaveChangesAsync();
+                }
+
+                TempData["Exito"] = "Conexión multiesquema 3FN con Supabase verificada y datos base sincronizados.";
                 return RedirectToAction(nameof(Dashboard));
             }
             catch (Exception ex)

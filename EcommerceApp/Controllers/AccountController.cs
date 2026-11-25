@@ -24,22 +24,21 @@ namespace EcommerceApp.Controllers
 
             if (result.Succeeded)
             {
-                // Obtener el usuario y sus roles para redirigir correctamente
                 var user = await userManager.FindByEmailAsync(model.Email);
                 var roles = await userManager.GetRolesAsync(user!);
 
-                // Roles de personal interno → Panel Administrativo
+                // Roles de personal interno -> Panel Administrativo
                 var staffRoles = new[] { "GerenteGeneral", "GerenteRegional", "GerenteSucursal", "Vendedor", "Comercial", "Admin" };
 
                 if (roles.Any(r => staffRoles.Contains(r)))
                     return RedirectToAction("Dashboard", "Admin");
 
-                // Rol Cliente → Tienda web
+                // Rol Cliente -> Tienda web
                 if (roles.Contains("Cliente") || roles.Contains("User"))
                     return RedirectToAction("Index", "Tienda");
 
-                // Fallback: si no tiene rol asignado aún, enviar a productos
-                return RedirectToAction("Index", "Products");
+                // Fallback: enviar a la tienda
+                return RedirectToAction("Index", "Tienda");
             }
 
             if (result.IsLockedOut)
@@ -66,15 +65,12 @@ namespace EcommerceApp.Controllers
                 UserName = model.Email,
                 Email = model.Email,
                 NombreCompleto = model.FullName,
-                FullName = model.FullName,
-                // Generar un código de cliente único automáticamente
                 CodigoCliente = "CLI-" + Guid.NewGuid().ToString("N").Substring(0, 6).ToUpper()
             };
 
             var result = await userManager.CreateAsync(user, model.Password);
             if (result.Succeeded)
             {
-                // Por defecto, los usuarios registrados son Clientes
                 await userManager.AddToRoleAsync(user, "Cliente");
                 await signInManager.SignInAsync(user, isPersistent: false);
                 return RedirectToAction("Index", "Tienda");
@@ -102,4 +98,3 @@ namespace EcommerceApp.Controllers
         public IActionResult AccessDenied() => View();
     }
 }
-

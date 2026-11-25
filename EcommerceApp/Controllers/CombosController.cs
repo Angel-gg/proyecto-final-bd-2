@@ -12,12 +12,23 @@ namespace EcommerceApp.Controllers
     [Authorize(Roles = "GerenteGeneral,GerenteSucursal,Comercial,Admin")]
     public class CombosController(ApplicationDbContext db) : Controller
     {
+        private async Task CargarComponentesAsync()
+        {
+            ViewBag.Componentes = await db.Componentes
+                .Include(c => c.Categoria)
+                .Include(c => c.Marca)
+                .OrderBy(c => c.Categoria!.Nombre)
+                .ThenBy(c => c.Nombre)
+                .ToListAsync();
+        }
+
         // GET /Combos
         public async Task<IActionResult> Index()
         {
             var combos = await db.Combos
                 .Include(c => c.ComboComponentes)
                     .ThenInclude(cc => cc.Componente)
+                        .ThenInclude(comp => comp!.Categoria)
                 .OrderBy(c => c.Nombre)
                 .ToListAsync();
             return View(combos);
@@ -29,6 +40,10 @@ namespace EcommerceApp.Controllers
             var combo = await db.Combos
                 .Include(c => c.ComboComponentes)
                     .ThenInclude(cc => cc.Componente)
+                        .ThenInclude(comp => comp!.Categoria)
+                .Include(c => c.ComboComponentes)
+                    .ThenInclude(cc => cc.Componente)
+                        .ThenInclude(comp => comp!.Marca)
                 .FirstOrDefaultAsync(c => c.Id == id);
             if (combo == null) return NotFound();
             return View(combo);
@@ -37,9 +52,7 @@ namespace EcommerceApp.Controllers
         // GET /Combos/Create
         public async Task<IActionResult> Create()
         {
-            ViewBag.Componentes = await db.Componentes
-                .OrderBy(c => c.Tipo).ThenBy(c => c.Nombre)
-                .ToListAsync();
+            await CargarComponentesAsync();
             return View();
         }
 
@@ -47,12 +60,11 @@ namespace EcommerceApp.Controllers
         [HttpPost, ValidateAntiForgeryToken]
         public async Task<IActionResult> Create(Combo combo, int[] ComponenteIds, int[] Cantidades)
         {
-            // Limpiar validaciones de navegación (no vienen del form)
             ModelState.Remove("ComboComponentes");
 
             if (!ModelState.IsValid)
             {
-                ViewBag.Componentes = await db.Componentes.OrderBy(c => c.Nombre).ToListAsync();
+                await CargarComponentesAsync();
                 return View(combo);
             }
 
@@ -60,14 +72,13 @@ namespace EcommerceApp.Controllers
             db.Combos.Add(combo);
             await db.SaveChangesAsync();
 
-            // Agregar los componentes seleccionados
             for (int i = 0; i < ComponenteIds.Length; i++)
             {
                 db.ComboComponentes.Add(new ComboComponente
                 {
-                    ComboId       = combo.Id,
-                    ComponenteId  = ComponenteIds[i],
-                    Cantidad      = i < Cantidades.Length ? Cantidades[i] : 1
+                    ComboId      = combo.Id,
+                    ComponenteId = ComponenteIds[i],
+                    Cantidad     = i < Cantidades.Length ? Cantidades[i] : 1
                 });
             }
             await db.SaveChangesAsync();
@@ -84,9 +95,7 @@ namespace EcommerceApp.Controllers
                 .FirstOrDefaultAsync(c => c.Id == id);
             if (combo == null) return NotFound();
 
-            ViewBag.Componentes = await db.Componentes
-                .OrderBy(c => c.Tipo).ThenBy(c => c.Nombre)
-                .ToListAsync();
+            await CargarComponentesAsync();
             return View(combo);
         }
 
@@ -99,14 +108,13 @@ namespace EcommerceApp.Controllers
 
             if (!ModelState.IsValid)
             {
-                ViewBag.Componentes = await db.Componentes.OrderBy(c => c.Nombre).ToListAsync();
+                await CargarComponentesAsync();
                 return View(combo);
             }
 
             combo.ActualizadoEn = DateTime.UtcNow;
             db.Combos.Update(combo);
 
-            // Reemplazar componentes
             var existentes = db.ComboComponentes.Where(cc => cc.ComboId == id);
             db.ComboComponentes.RemoveRange(existentes);
 
@@ -114,9 +122,9 @@ namespace EcommerceApp.Controllers
             {
                 db.ComboComponentes.Add(new ComboComponente
                 {
-                    ComboId       = id,
-                    ComponenteId  = ComponenteIds[i],
-                    Cantidad      = i < Cantidades.Length ? Cantidades[i] : 1
+                    ComboId      = id,
+                    ComponenteId = ComponenteIds[i],
+                    Cantidad     = i < Cantidades.Length ? Cantidades[i] : 1
                 });
             }
             await db.SaveChangesAsync();

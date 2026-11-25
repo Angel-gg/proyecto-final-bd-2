@@ -4,8 +4,7 @@ using System.ComponentModel.DataAnnotations.Schema;
 namespace EcommerceApp.Models
 {
     /// <summary>
-    /// Registro de un carrito que fue abandonado sin completar la compra.
-    /// Se actualiza cada vez que el usuario modifica el carrito.
+    /// Registro de un carrito que fue abandonado sin completar la compra (esquema ventas, JSONB).
     /// </summary>
     public class CarritoAbandonado
     {
@@ -16,10 +15,12 @@ namespace EcommerceApp.Models
         public string UserId { get; set; } = string.Empty;
         public ApplicationUser? Usuario { get; set; }
 
-        public DateTime FechaCreacion { get; set; } = DateTime.Now;
-        public DateTime FechaUltimaActividad { get; set; } = DateTime.Now;
+        public DateTime FechaCreacion { get; set; } = DateTime.UtcNow;
+        public DateTime FechaUltimaActividad { get; set; } = DateTime.UtcNow;
+        public DateTime? FechaExpira { get; set; }
 
-        /// <summary>JSON serializado de los ítems del carrito</summary>
+        /// <summary>JSONB serializado de los ítems del carrito</summary>
+        [Column(TypeName = "jsonb")]
         public string ItemsJson { get; set; } = "[]";
 
         [Column(TypeName = "decimal(18,2)")]

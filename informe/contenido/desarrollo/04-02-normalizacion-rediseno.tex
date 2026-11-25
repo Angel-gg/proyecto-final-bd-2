@@ -1,0 +1,208 @@
+% ============================================================================
+%  04-02: NORMALIZACIÓN Y REDISEÑO
+% ============================================================================
+
+\section{Normalización y redise\~no (``DESPU\'ES'')}
+
+\subsection{Aplicaci\'on de las Formas Normales}
+
+\subsubsection{Primera Forma Normal (1FN)}
+
+Una relaci\'on est\'a en 1FN si todos sus atributos son at\'omicos (no hay grupos repetitivos ni atributos multivaluados).
+
+\textbf{Violaci\'on detectada:} La columna \texttt{CarritosAbandonados.ItemsJson} almacena m\'ultiples \'items de carrito codificados como una cadena JSON en un campo \texttt{text}.
+Un solo atributo contiene en realidad una lista de pares \{productoId, cantidad, precio\}, lo que constituye un grupo repetitivo encubierto.
+
+\textbf{Correcci\'on aplicada:} Se migra la columna a tipo \texttt{jsonb} y se a\~nade un \'indice GIN para permitir b\'usquedas eficientes sobre la estructura JSON sin crear una tabla adicional.
+Supabase y PostgreSQL soportan de forma nativa el tipo \texttt{jsonb} con operadores de consulta (\texttt{@>}, \texttt{?}, \texttt{jsonb\_array\_elements}).
+
+\subsubsection{Segunda Forma Normal (2FN)}
+
+Una relaci\'on est\'a en 2FN si est\'a en 1FN y cada atributo no clave depende funcionalmente de \textit{toda} la clave primaria (no de una parte de ella).
+Esta forma normal s\'olo es relevante cuando la clave primaria es compuesta.
+
+\textbf{Tabla analizada:} \texttt{ComboComponentes} tiene clave primaria compuesta (\texttt{ComboId}, \texttt{ComponenteId}) m\'as el atributo \texttt{Cantidad}.
+El atributo \texttt{Cantidad} depende funcionalmente de ambas columnas de la clave (``cu\'antos de este componente van en este combo''), por lo que ya est\'a en 2FN.
+
+\textbf{Tabla con atributos parcialmente dependientes:} Si \texttt{Componentes} incluyera \texttt{NombreCategoria} como texto libre junto con \texttt{CategoriaId}, \texttt{NombreCategoria} depender\'ia \'unicamente de \texttt{CategoriaId} (no de \texttt{Id} del componente), violando la 2FN en un contexto de clave compuesta hipot\'etica.
+La soluci\'on es crear la tabla \texttt{Categorias} y referenciarla con \texttt{FK}.
+
+\subsubsection{Tercera Forma Normal (3FN)}
+
+Una relaci\'on est\'a en 3FN si est\'a en 2FN y ning\'un atributo no clave depende transitivamente de la clave primaria (es decir, no hay dependencias entre atributos no clave).
+
+\textbf{Violaci\'on en \texttt{AspNetUsers}:}
+\begin{itemize}
+  \item \texttt{Id} $\rightarrow$ \texttt{NombreCompleto} (dependencia directa, correcta).
+  \item \texttt{Id} $\rightarrow$ \texttt{FullName} (dependencia transitiva: \texttt{NombreCompleto} $\rightarrow$ \texttt{FullName}).
+\end{itemize}
+La columna \texttt{FullName} es una copia de \texttt{NombreCompleto}; eliminarla resuelve la dependencia transitiva.
+
+\textbf{Violaci\'on en \texttt{Componentes}:}
+\begin{itemize}
+  \item \texttt{Id} $\rightarrow$ \texttt{Tipo} (texto libre, e.g. ``Tarjetas de Video'').
+  \item \texttt{Tipo} $\rightarrow$ \texttt{NombreCategoria} (si se a\~nadiera esa columna, ser\'ia transitiva).
+\end{itemize}
+La soluci\'on es separar \texttt{Tipo} en una tabla \texttt{Categorias} (\texttt{Id}, \texttt{Nombre}) y reemplazar \texttt{Tipo text} por \texttt{CategoriaId integer FK}.
+An\'alogamente, \texttt{Marca text} se reemplaza por \texttt{MarcaId integer FK} referenciando la tabla \texttt{Marcas}.
+
+\subsection{Dise\~no del esquema DESPU\'ES}
+
+\subsubsection{Separaci\'on en esquemas de negocio}
+
+Se organiza la base de datos en cinco esquemas especializados:
+
+\begin{center}
+\begin{tablaAPA}
+\begin{tabular}{L{2.8cm} L{5.5cm} L{5.5cm}}
+\toprule
+\textbf{Esquema} & \textbf{Tablas} & \textbf{Prop\'osito} \\
+\midrule
+\texttt{catalogo} & Componentes, Categorias, Marcas, Combos, ComboComponentes & Cat\'alogo de productos y agrupaciones \\
+\texttt{ventas} & Pedidos, PedidoItems, CarritosAbandonados & Ciclo de vida de ventas \\
+\texttt{operaciones} & Sucursales, Proveedores, Regiones & Log\'istica y abastecimiento \\
+\texttt{seguridad} & AspNetUsers (extendida) + tablas Identity & Identidad y autorizaci\'on \\
+\texttt{auditoria} & AuditoriaPedidos, AuditoriaComponentes & Trazabilidad de cambios \\
+\bottomrule
+\end{tabular}
+\end{tablaAPA}
+\captionof{table}{Distribuci\'on de tablas por esquema --- Estado DESPU\'ES}
+\label{tab:esquemas}
+\end{center}
+
+\subsection{Diccionario de datos completo}
+
+\subsubsection{Esquema \texttt{catalogo} --- Tabla \texttt{Categorias}}
+
+\begin{center}
+\begin{tablaAPA}
+\begin{tabular}{L{2.8cm} L{2.0cm} C{1.4cm} L{7.0cm}}
+\toprule
+\textbf{Columna} & \textbf{Tipo} & \textbf{Nulo} & \textbf{Restricciones / Descripci\'on} \\
+\midrule
+Id      & serial      & NO & PK, autoincremental \\
+Nombre  & varchar(60) & NO & UNIQUE; nombre de la categor\'ia (ej. ``Tarjetas de Video'') \\
+Slug    & varchar(80) & NO & UNIQUE; identificador URL-safe (ej. ``tarjetas-de-video'') \\
+\bottomrule
+\end{tabular}
+\end{tablaAPA}
+\captionof{table}{Diccionario de datos --- \texttt{catalogo.Categorias}}
+\label{tab:dict-categorias}
+\end{center}
+
+\subsubsection{Esquema \texttt{catalogo} --- Tabla \texttt{Marcas}}
+
+\begin{center}
+\begin{tablaAPA}
+\begin{tabular}{L{2.8cm} L{2.0cm} C{1.4cm} L{7.0cm}}
+\toprule
+\textbf{Columna} & \textbf{Tipo} & \textbf{Nulo} & \textbf{Restricciones / Descripci\'on} \\
+\midrule
+Id      & serial      & NO & PK, autoincremental \\
+Nombre  & varchar(80) & NO & UNIQUE; nombre de la marca (ej. ``NVIDIA'', ``ASUS ROG'') \\
+Pa\'is   & varchar(60) & S\'I & Pa\'is de origen de la marca \\
+\bottomrule
+\end{tabular}
+\end{tablaAPA}
+\captionof{table}{Diccionario de datos --- \texttt{catalogo.Marcas}}
+\label{tab:dict-marcas}
+\end{center}
+
+\subsubsection{Esquema \texttt{catalogo} --- Tabla \texttt{Componentes}}
+
+\begin{center}
+\begin{tablaAPA}
+\begin{tabular}{L{2.8cm} L{2.2cm} C{1.2cm} L{7.0cm}}
+\toprule
+\textbf{Columna} & \textbf{Tipo} & \textbf{Nulo} & \textbf{Restricciones / Descripci\'on} \\
+\midrule
+Id          & serial         & NO & PK \\
+Nombre      & varchar(200)   & NO & Nombre del componente \\
+Descripcion & text           & S\'I & Descripci\'on t\'ecnica \\
+CategoriaId & integer        & NO & FK $\to$ \texttt{Categorias.Id} ON DELETE RESTRICT \\
+MarcaId     & integer        & NO & FK $\to$ \texttt{Marcas.Id} ON DELETE RESTRICT \\
+Precio      & numeric(10,2)  & NO & CHECK (Precio $>$ 0) \\
+Stock       & integer        & NO & CHECK (Stock $\geq$ 0); DEFAULT 0 \\
+ImagenUrl   & varchar(500)   & S\'I & URL de imagen del producto \\
+Activo      & boolean        & NO & DEFAULT true; habilita/deshabilita el producto \\
+CreadoEn    & timestamptz    & NO & DEFAULT now() \\
+\bottomrule
+\end{tabular}
+\end{tablaAPA}
+\captionof{table}{Diccionario de datos --- \texttt{catalogo.Componentes} (Estado DESPU\'ES)}
+\label{tab:dict-componentes}
+\end{center}
+
+\subsubsection{Esquema \texttt{ventas} --- Tabla \texttt{PedidoItems} (redise\~nada)}
+
+\begin{center}
+\begin{tablaAPA}
+\begin{tabular}{L{2.8cm} L{2.2cm} C{1.2cm} L{7.0cm}}
+\toprule
+\textbf{Columna} & \textbf{Tipo} & \textbf{Nulo} & \textbf{Restricciones / Descripci\'on} \\
+\midrule
+Id            & serial        & NO & PK \\
+PedidoId      & integer       & NO & FK $\to$ \texttt{Pedidos.Id} ON DELETE CASCADE \\
+ComponenteId  & integer       & S\'I & FK $\to$ \texttt{Componentes.Id} ON DELETE RESTRICT; nulo si es Combo \\
+ComboId       & integer       & S\'I & FK $\to$ \texttt{Combos.Id} ON DELETE RESTRICT; nulo si es Componente \\
+Cantidad      & integer       & NO & CHECK (Cantidad $>$ 0) \\
+PrecioUnitario& numeric(10,2) & NO & CHECK (PrecioUnitario $>$ 0); precio al momento de la compra \\
+\bottomrule
+\end{tabular}
+\end{tablaAPA}
+\captionof{table}{Diccionario de datos --- \texttt{ventas.PedidoItems} (Estado DESPU\'ES)}
+\label{tab:dict-pedidoitems}
+\end{center}
+
+La restricci\'on \texttt{CHECK ((ComponenteId IS NOT NULL AND ComboId IS NULL) OR (ComboId IS NOT NULL AND ComponenteId IS NULL))} garantiza que cada \'item referencie exactamente un tipo de producto, resolviendo la referencia polim\'orfica sin FK del estado anterior.
+
+\subsection{Diagrama Entidad-Relaci\'on --- Estado DESPU\'ES}
+
+\figuraAPA{fig:der-despues}{Diagrama Entidad-Relaci\'on normalizado --- Estado DESPU\'ES}{%
+\begin{tikzpicture}[
+  ent/.style={draw, rectangle, rounded corners=3pt, fill=green!12, minimum width=2.6cm, minimum height=0.65cm, font=\small\bfseries, align=center},
+  aux/.style={draw, rectangle, rounded corners=3pt, fill=blue!10, minimum width=2.2cm, minimum height=0.6cm, font=\small, align=center},
+  aud/.style={draw, rectangle, rounded corners=3pt, fill=gray!15, minimum width=2.4cm, minimum height=0.6cm, font=\small, align=center},
+  fk/.style={-Stealth, thick},
+  node distance=1.3cm and 2.0cm
+]
+% Esquema catalogo
+\node[aux] (cat) {Categorias};
+\node[aux, right=2cm of cat] (mar) {Marcas};
+\node[ent, below=1.2cm of cat] (comp) {Componentes};
+\node[ent, right=2.3cm of comp] (combos) {Combos};
+\node[ent, right=2.3cm of combos] (ccomp) {Combo\\Componentes};
+
+% Esquema ventas
+\node[ent, below=1.8cm of comp] (ped) {Pedidos};
+\node[ent, right=2.3cm of ped] (pitems) {PedidoItems};
+\node[ent, right=2.3cm of pitems] (carr) {Carritos\\Abandonados};
+
+% Esquema operaciones
+\node[aux, below=1.6cm of ped] (suc) {Sucursales};
+\node[aux, right=2.2cm of suc] (prov) {Proveedores};
+\node[aux, left=2.2cm of suc] (reg) {Regiones};
+
+% Esquema seguridad
+\node[aux, left=2.5cm of ped] (users) {AspNetUsers};
+
+% Esquema auditoria
+\node[aud, below=1.6cm of pitems] (audped) {Auditoria\\Pedidos};
+\node[aud, right=1.5cm of audped] (audcomp) {Auditoria\\Componentes};
+
+% FKs
+\draw[fk] (comp) -- node[left,font=\tiny]{FK} (cat);
+\draw[fk] (comp.north east) -- node[above,font=\tiny]{FK} (mar.south west);
+\draw[fk] (ccomp) -- node[above,font=\tiny]{FK} (combos);
+\draw[fk] (ccomp.south) -- node[right,font=\tiny]{FK} (comp.north east);
+\draw[fk] (ped) -- node[above,font=\tiny]{FK} (users);
+\draw[fk] (pitems) -- node[above,font=\tiny]{FK} (ped);
+\draw[fk] (pitems.north) -- node[right,font=\tiny]{FK opt} (comp.south east);
+\draw[fk] (pitems.north east) -- node[above,font=\tiny]{FK opt} (combos.south);
+\draw[fk] (carr) -- node[right,font=\tiny]{FK} (users);
+\draw[fk] (users) -- node[left,font=\tiny]{FK} (suc);
+\draw[fk] (users.south west) -- node[below,font=\tiny]{FK} (reg.north east);
+\draw[fk] (audped) -- node[left,font=\tiny]{trig} (ped);
+\draw[fk] (audcomp) -- node[right,font=\tiny]{trig} (comp.south);
+\end{tikzpicture}%
+}{Elaboraci\'on propia basada en el redise\~no propuesto para la materia Base de Datos II}

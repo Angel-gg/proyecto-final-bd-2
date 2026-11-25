@@ -81,7 +81,7 @@
                             }
                             <div>
                                 <div class="part-name">@cc.Componente?.Nombre</div>
-                                <div class="part-type">@cc.Componente?.Tipo · @cc.Componente?.Marca</div>
+                                <div class="part-type">@(cc.Componente?.Categoria?.Nombre ?? "—") · @(cc.Componente?.Marca?.Nombre ?? "—")</div>
                             </div>
                             <span class="part-qty">x@cc.Cantidad</span>
                             <span class="part-price">$@cc.Componente?.Precio.ToString("N2")</span>

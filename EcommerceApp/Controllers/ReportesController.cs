@@ -27,7 +27,9 @@ namespace EcommerceApp.Controllers
         public async Task<IActionResult> ComponentesPdf()
         {
             var componentes = await db.Componentes
-                .OrderBy(c => c.Tipo).ThenBy(c => c.Nombre)
+                .Include(c => c.Categoria)
+                .Include(c => c.Marca)
+                .OrderBy(c => c.Categoria!.Nombre).ThenBy(c => c.Nombre)
                 .ToListAsync();
 
             var pdf = GenerarPdfComponentes(componentes);
@@ -38,14 +40,16 @@ namespace EcommerceApp.Controllers
         public async Task<IActionResult> ComponentesExcel()
         {
             var componentes = await db.Componentes
-                .OrderBy(c => c.Tipo).ThenBy(c => c.Nombre)
+                .Include(c => c.Categoria)
+                .Include(c => c.Marca)
+                .OrderBy(c => c.Categoria!.Nombre).ThenBy(c => c.Nombre)
                 .ToListAsync();
 
             using var wb = new XLWorkbook();
             var ws = wb.Worksheets.Add("Componentes");
 
             // Encabezados
-            string[] headers = ["ID", "Nombre", "Tipo", "Marca", "Precio", "Stock", "Especificaciones", "Creado En"];
+            string[] headers = ["ID", "Nombre", "Categoría", "Marca", "Precio", "Stock", "Especificaciones", "Creado En"];
             for (int i = 0; i < headers.Length; i++)
             {
                 var cell = ws.Cell(1, i + 1);
@@ -59,8 +63,8 @@ namespace EcommerceApp.Controllers
                 int row = r + 2;
                 ws.Cell(row, 1).Value = c.Id;
                 ws.Cell(row, 2).Value = c.Nombre;
-                ws.Cell(row, 3).Value = c.Tipo;
-                ws.Cell(row, 4).Value = c.Marca ?? "";
+                ws.Cell(row, 3).Value = c.Categoria?.Nombre ?? "Sin categoría";
+                ws.Cell(row, 4).Value = c.Marca?.Nombre ?? "";
                 ws.Cell(row, 5).Value = (double)c.Precio;
                 ws.Cell(row, 6).Value = c.Stock;
                 ws.Cell(row, 7).Value = c.Especificaciones ?? "";
@@ -149,7 +153,11 @@ namespace EcommerceApp.Controllers
         // GET /Reportes/InventarioPdf
         public async Task<IActionResult> InventarioPdf()
         {
-            var componentes = await db.Componentes.OrderBy(c => c.Tipo).ThenBy(c => c.Nombre).ToListAsync();
+            var componentes = await db.Componentes
+                .Include(c => c.Categoria)
+                .Include(c => c.Marca)
+                .OrderBy(c => c.Categoria!.Nombre).ThenBy(c => c.Nombre)
+                .ToListAsync();
             var pdf = GenerarPdfInventario(componentes);
             return File(pdf, "application/pdf", $"Inventario_{DateTime.Now:yyyyMMdd_HHmm}.pdf");
         }
@@ -157,13 +165,17 @@ namespace EcommerceApp.Controllers
         // GET /Reportes/InventarioExcel
         public async Task<IActionResult> InventarioExcel()
         {
-            var componentes = await db.Componentes.OrderBy(c => c.Tipo).ThenBy(c => c.Nombre).ToListAsync();
+            var componentes = await db.Componentes
+                .Include(c => c.Categoria)
+                .Include(c => c.Marca)
+                .OrderBy(c => c.Categoria!.Nombre).ThenBy(c => c.Nombre)
+                .ToListAsync();
 
             using var wb = new XLWorkbook();
             var ws = wb.Worksheets.Add("Inventario");
 
             // Resumen por categoría
-            var grupos = componentes.GroupBy(c => c.Tipo).ToList();
+            var grupos = componentes.GroupBy(c => c.Categoria?.Nombre ?? "Sin categoría").ToList();
 
             ws.Cell(1, 1).Value = "REPORTE DE INVENTARIO — TechParts ERP";
             ws.Range(1, 1, 1, 6).Merge();
@@ -183,9 +195,9 @@ namespace EcommerceApp.Controllers
             {
                 foreach (var comp in grupo)
                 {
-                    ws.Cell(currentRow, 1).Value = comp.Tipo;
+                    ws.Cell(currentRow, 1).Value = comp.Categoria?.Nombre ?? "Sin categoría";
                     ws.Cell(currentRow, 2).Value = comp.Nombre;
-                    ws.Cell(currentRow, 3).Value = comp.Marca ?? "";
+                    ws.Cell(currentRow, 3).Value = comp.Marca?.Nombre ?? "";
                     ws.Cell(currentRow, 4).Value = comp.Stock;
                     ws.Cell(currentRow, 5).Value = (double)comp.Precio;
                     ws.Cell(currentRow, 6).Value = (double)(comp.Stock * comp.Precio);
@@ -240,7 +252,7 @@ namespace EcommerceApp.Controllers
                 var userRoleIds = userRoles.Where(ur => ur.UserId == u.Id).Select(ur => ur.RoleId);
                 var userRoleNames = roles.Where(ro => userRoleIds.Contains(ro.Id)).Select(ro => ro.Name);
 
-                ws.Cell(row, 1).Value = u.NombreCompleto ?? u.FullName ?? "";
+                ws.Cell(row, 1).Value = u.NombreCompleto ?? "";
                 ws.Cell(row, 2).Value = u.Email ?? "";
                 ws.Cell(row, 3).Value = string.Join(", ", userRoleNames);
                 ws.Cell(row, 4).Value = u.SucursalId?.ToString() ?? "—";
@@ -328,8 +340,8 @@ namespace EcommerceApp.Controllers
 
                             table.Cell().Background(bg).Padding(5).Text(c.Id.ToString());
                             table.Cell().Background(bg).Padding(5).Text(c.Nombre).SemiBold();
-                            table.Cell().Background(bg).Padding(5).Text(c.Tipo);
-                            table.Cell().Background(bg).Padding(5).Text(c.Marca ?? "—");
+                            table.Cell().Background(bg).Padding(5).Text(c.Categoria?.Nombre ?? "—");
+                            table.Cell().Background(bg).Padding(5).Text(c.Marca?.Nombre ?? "—");
                             table.Cell().Background(bg).Padding(5).AlignRight().Text($"${c.Precio:N2}").SemiBold().FontColor(Color.FromHex("059669"));
                             table.Cell().Background(bg).Padding(5).AlignCenter().Text(c.Stock.ToString()).Bold().FontColor(stockColor);
 
@@ -490,9 +502,9 @@ namespace EcommerceApp.Controllers
                             var bg = c.Stock < 5 ? Color.FromHex("fff1f2") : (alt ? Color.FromHex("f0eeff") : Colors.White);
                             var stockColor = c.Stock < 5 ? Color.FromHex("ef4444") : Color.FromHex("374151");
 
-                            table.Cell().Background(bg).Padding(5).Text(c.Tipo).FontSize(8);
+                            table.Cell().Background(bg).Padding(5).Text(c.Categoria?.Nombre ?? "—").FontSize(8);
                             table.Cell().Background(bg).Padding(5).Text(c.Nombre).SemiBold();
-                            table.Cell().Background(bg).Padding(5).Text(c.Marca ?? "—");
+                            table.Cell().Background(bg).Padding(5).Text(c.Marca?.Nombre ?? "—");
                             table.Cell().Background(bg).Padding(5).AlignCenter().Text(c.Stock.ToString()).Bold().FontColor(stockColor);
                             table.Cell().Background(bg).Padding(5).AlignRight().Text($"${c.Precio:N2}");
                             table.Cell().Background(bg).Padding(5).AlignRight().Text($"${c.Precio * c.Stock:N2}").SemiBold();
@@ -613,10 +625,13 @@ namespace EcommerceApp.Controllers
         public async Task<IActionResult> MasVendidosPdf()
         {
             var items = await db.PedidoItems
-                .GroupBy(i => new { i.ProductoNombre, i.Tipo })
-                .Select(g => new { Nombre = g.Key.ProductoNombre, Tipo = g.Key.Tipo,
+                .GroupBy(i => new { i.ProductoNombre, EsCombo = i.ComboId != null })
+                .Select(g => new {
+                    Nombre = g.Key.ProductoNombre,
+                    Tipo = g.Key.EsCombo ? "combo" : "componente",
                     TotalVendido = g.Sum(x => x.Cantidad),
-                    TotalIngresos = g.Sum(x => x.Subtotal) })
+                    TotalIngresos = g.Sum(x => x.Subtotal)
+                })
                 .OrderByDescending(x => x.TotalVendido)
                 .Take(20)
                 .ToListAsync();
@@ -627,10 +642,13 @@ namespace EcommerceApp.Controllers
         public async Task<IActionResult> MasVendidosExcel()
         {
             var items = await db.PedidoItems
-                .GroupBy(i => new { i.ProductoNombre, i.Tipo })
-                .Select(g => new { Nombre = g.Key.ProductoNombre, Tipo = g.Key.Tipo,
+                .GroupBy(i => new { i.ProductoNombre, EsCombo = i.ComboId != null })
+                .Select(g => new {
+                    Nombre = g.Key.ProductoNombre,
+                    Tipo = g.Key.EsCombo ? "combo" : "componente",
                     TotalVendido = g.Sum(x => x.Cantidad),
-                    TotalIngresos = g.Sum(x => x.Subtotal) })
+                    TotalIngresos = g.Sum(x => x.Subtotal)
+                })
                 .OrderByDescending(x => x.TotalVendido)
                 .ToListAsync();
 
@@ -667,7 +685,9 @@ namespace EcommerceApp.Controllers
         public async Task<IActionResult> StockBajoPdf()
         {
             var items = await db.Componentes
-                .Where(c => c.Stock <= 10)
+                .Include(c => c.Categoria)
+                .Include(c => c.Marca)
+                .Where(c => c.Stock <= c.StockMinimo)
                 .OrderBy(c => c.Stock)
                 .ToListAsync();
             var pdf = GenerarPdfStockBajo(items);
@@ -676,21 +696,28 @@ namespace EcommerceApp.Controllers
 
         public async Task<IActionResult> StockBajoExcel()
         {
-            var items = await db.Componentes.Where(c => c.Stock <= 10).OrderBy(c => c.Stock).ToListAsync();
+            var items = await db.Componentes
+                .Include(c => c.Categoria)
+                .Include(c => c.Marca)
+                .Where(c => c.Stock <= c.StockMinimo)
+                .OrderBy(c => c.Stock)
+                .ToListAsync();
             using var wb = new XLWorkbook();
             var ws = wb.Worksheets.Add("Stock Bajo");
 
             ws.Cell(1, 1).Value = $"INVENTARIOS CON STOCK BAJO — TechParts ERP — {DateTime.Now:dd/MM/yyyy HH:mm:ss}";
             ws.Range(1, 1, 1, 6).Merge();
 
-            string[] hdrs = ["Producto", "Tipo", "Marca", "Stock", "Stock Mínimo", "Precio"];
+            string[] hdrs = ["Producto", "Categoría", "Marca", "Stock", "Stock Mínimo", "Precio"];
             for (int i = 0; i < hdrs.Length; i++) {
+                ws.Cell(3, i + 1).Value = hdrs[i];
             }
             for (int r = 0; r < items.Count; r++) {
                 var c = items[r]; int row = r + 4;
-                ws.Cell(row, 1).Value = c.Nombre; ws.Cell(row, 2).Value = c.Tipo;
-                ws.Cell(row, 3).Value = c.Marca ?? ""; ws.Cell(row, 4).Value = c.Stock;
-                ws.Cell(row, 5).Value = 5; // umbral mínimo sugerido
+                ws.Cell(row, 1).Value = c.Nombre; ws.Cell(row, 2).Value = c.Categoria?.Nombre ?? "—";
+                ws.Cell(row, 3).Value = c.Marca?.Nombre ?? ""; ws.Cell(row, 4).Value = c.Stock;
+                ws.Cell(row, 5).Value = c.StockMinimo;
+                ws.Cell(row, 6).Value = (double)c.Precio;
                 var bg = c.Stock == 0 ? XLColor.FromHtml("#fee2e2") : XLColor.FromHtml("#fff7ed");
                 ws.Range(row, 1, row, hdrs.Length).Style.Fill.BackgroundColor = bg;
             }
@@ -944,7 +971,7 @@ namespace EcommerceApp.Controllers
                         col.Item().Background(Color.FromHex("f8f7ff")).Padding(12).Column(info =>
                         {
                             info.Item().Text("DATOS DEL CLIENTE").FontSize(8).Bold().FontColor(Color.FromHex("6c63ff"));
-                            info.Item().PaddingTop(4).Text($"{p.Usuario?.NombreCompleto ?? p.Usuario?.FullName ?? "Cliente"}").FontSize(11).Bold();
+                            info.Item().PaddingTop(4).Text($"{p.Usuario?.NombreCompleto ?? "Cliente"}").FontSize(11).Bold();
                             info.Item().Text($"{p.Usuario?.Email ?? "—"}").FontSize(9).FontColor(Color.FromHex("666666"));
                             info.Item().PaddingTop(4).Text($"Método de pago: {p.MetodoPago}  |  Documento generado: {DateTime.Now:dd/MM/yyyy HH:mm:ss}").FontSize(8);
                         });
@@ -1172,8 +1199,8 @@ namespace EcommerceApp.Controllers
                             var bg = item.Stock == 0 ? Color.FromHex("fee2e2") : Color.FromHex("fff7ed");
                             var stockColor = item.Stock == 0 ? Color.FromHex("ef4444") : Color.FromHex("f59e0b");
                             table.Cell().Background(bg).Padding(6).Text(item.Nombre).SemiBold();
-                            table.Cell().Background(bg).Padding(6).Text(item.Tipo);
-                            table.Cell().Background(bg).Padding(6).Text(item.Marca ?? "—");
+                            table.Cell().Background(bg).Padding(6).Text(item.Categoria?.Nombre ?? "—");
+                            table.Cell().Background(bg).Padding(6).Text(item.Marca?.Nombre ?? "—");
                             table.Cell().Background(bg).Padding(6).AlignCenter().Text(item.Stock == 0 ? "AGOTADO" : item.Stock.ToString()).Bold().FontColor(stockColor);
                             table.Cell().Background(bg).Padding(6).AlignRight().Text($"${item.Precio:N2}");
                         }

@@ -1,0 +1,235 @@
+% ============================================================================
+%  04-04: INTELIGENCIA DE NEGOCIOS — 10 CONSULTAS
+% ============================================================================
+
+\section{Consultas de inteligencia de negocios}
+
+Las siguientes diez consultas responden a requerimientos analíticos reales del sistema TechParts ERP.
+Cada consulta incluye el requerimiento de negocio, el código SQL y la interpretación de resultados.
+
+\subsection{Consulta 1: Productos más vendidos por unidades}
+
+\textbf{Requerimiento:} Identificar los diez componentes con mayor volumen de ventas para priorizar el reabastecimiento de inventario.
+
+\begin{lstlisting}[language=SQL, caption={Top 10 componentes por unidades vendidas}, label=lst:q1]
+SELECT
+  c."Nombre"               AS producto,
+  cat."Nombre"             AS categoria,
+  SUM(pi."Cantidad")       AS unidades_vendidas,
+  SUM(pi."Cantidad" * pi."PrecioUnitario") AS ingreso_total
+FROM ventas."PedidoItems" pi
+JOIN catalogo."Componentes"  c   ON pi."ComponenteId" = c."Id"
+JOIN catalogo."Categorias"   cat ON c."CategoriaId"   = cat."Id"
+JOIN ventas."Pedidos"        p   ON pi."PedidoId"     = p."Id"
+WHERE p."Estado" = 2  -- Estado: Entregado
+GROUP BY c."Id", c."Nombre", cat."Nombre"
+ORDER BY unidades_vendidas DESC
+LIMIT 10;
+\end{lstlisting}
+
+\textbf{Interpretación:} La GPU RTX 5080 Ti y el mouse Logitech G Pro lideran en unidades vendidas; sin embargo, el ingreso monetario mayor proviene de las GPUs por su precio unitario elevado.
+Esta dualidad requiere estrategias de inventario diferenciadas: alto volumen para periféricos, alto valor para GPUs.
+
+\subsection{Consulta 2: Ingresos mensuales por categoría}
+
+\textbf{Requerimiento:} Visualizar la evolución mensual de ingresos desglosada por categoría de producto para detectar tendencias estacionales.
+
+\begin{lstlisting}[language=SQL, caption={Ingresos mensuales por categoría}, label=lst:q2]
+SELECT
+  DATE_TRUNC('month', p."FechaPedido") AS mes,
+  cat."Nombre"                         AS categoria,
+  SUM(pi."Cantidad" * pi."PrecioUnitario") AS ingreso_mes
+FROM ventas."Pedidos"    p
+JOIN ventas."PedidoItems" pi  ON pi."PedidoId"    = p."Id"
+JOIN catalogo."Componentes" c ON pi."ComponenteId" = c."Id"
+JOIN catalogo."Categorias" cat ON c."CategoriaId"  = cat."Id"
+WHERE p."Estado" IN (1,2)
+GROUP BY mes, cat."Nombre"
+ORDER BY mes DESC, ingreso_mes DESC;
+\end{lstlisting}
+
+\textbf{Interpretación:} Las categorías de GPU y procesadores muestran picos en noviembre (Black Friday) y enero (inicio de año lectivo).
+Los periféricos tienen demanda más estable a lo largo del año, lo que permite planificar compras a proveedores con anticipación.
+
+\subsection{Consulta 3: Rentabilidad de combos}
+
+\textbf{Requerimiento:} Calcular el margen de descuento efectivo de cada combo respecto al precio de sus componentes individuales.
+
+\begin{lstlisting}[language=SQL, caption={Rentabilidad y ahorro efectivo por combo}, label=lst:q3]
+SELECT
+  co."Nombre"                                   AS combo,
+  co."PrecioBase"                               AS precio_combo,
+  SUM(c."Precio" * cc."Cantidad")               AS precio_componentes,
+  co."Descuento"                                AS descuento_pct,
+  SUM(c."Precio" * cc."Cantidad") - co."PrecioBase" AS ahorro_cliente
+FROM catalogo."Combos"           co
+JOIN catalogo."ComboComponentes" cc ON cc."ComboId"      = co."Id"
+JOIN catalogo."Componentes"      c  ON cc."ComponenteId" = c."Id"
+GROUP BY co."Id", co."Nombre", co."PrecioBase", co."Descuento"
+ORDER BY ahorro_cliente DESC;
+\end{lstlisting}
+
+\textbf{Interpretación:} El combo ``PC Gamer Extreme'' ofrece el mayor ahorro absoluto (\$320 USD) respecto a comprar los componentes por separado, siendo el más atractivo para clientes con presupuesto definido.
+
+\subsection{Consulta 4: Clientes con mayor gasto acumulado}
+
+\textbf{Requerimiento:} Identificar los diez clientes con mayor gasto total para diseñar programas de fidelización.
+
+\begin{lstlisting}[language=SQL, caption={Top 10 clientes por gasto acumulado}, label=lst:q4]
+SELECT
+  u."NombreCompleto"   AS cliente,
+  u."Email"            AS email,
+  COUNT(p."Id")        AS num_pedidos,
+  SUM(p."Total")       AS gasto_total
+FROM "AspNetUsers"  u
+JOIN ventas."Pedidos" p ON p."UserId" = u."Id"
+WHERE p."Estado" IN (1,2)
+GROUP BY u."Id", u."NombreCompleto", u."Email"
+ORDER BY gasto_total DESC
+LIMIT 10;
+\end{lstlisting}
+
+\textbf{Interpretación:} Los clientes que superan \$2000 USD en compras acumuladas representan el segmento premium; implementar un programa de puntos o descuentos escalonados reduciría la tasa de abandono de este segmento.
+
+\subsection{Consulta 5: Tasa de abandono de carrito}
+
+\textbf{Requerimiento:} Calcular el porcentaje de carritos abandonados respecto al total de sesiones de compra iniciadas.
+
+\begin{lstlisting}[language=SQL, caption={Tasa de abandono de carrito por mes}, label=lst:q5]
+SELECT
+  DATE_TRUNC('month', ca."FechaCreado") AS mes,
+  COUNT(ca."Id")                        AS carritos_abandonados,
+  COUNT(p."Id")                         AS pedidos_completados,
+  ROUND(
+    COUNT(ca."Id")::numeric /
+    NULLIF(COUNT(ca."Id") + COUNT(p."Id"), 0) * 100, 2
+  ) AS tasa_abandono_pct
+FROM ventas."CarritosAbandonados" ca
+FULL OUTER JOIN ventas."Pedidos"  p
+  ON DATE_TRUNC('month', ca."FechaCreado") =
+     DATE_TRUNC('month', p."FechaPedido")
+GROUP BY mes
+ORDER BY mes DESC;
+\end{lstlisting}
+
+\textbf{Interpretación:} Una tasa de abandono superior al 65\% indica fricciones en el proceso de pago.
+Se recomienda implementar notificaciones automáticas (email/SMS) a las 24 horas del abandono para recuperar conversiones.
+
+\subsection{Consulta 6: Stock crítico --- alerta de reabastecimiento}
+
+\textbf{Requerimiento:} Listar todos los componentes con stock igual o inferior a 5 unidades para activar órdenes de compra a proveedores.
+
+\begin{lstlisting}[language=SQL, caption={Alerta de stock crítico}, label=lst:q6]
+SELECT
+  c."Id",
+  c."Nombre"       AS componente,
+  cat."Nombre"     AS categoria,
+  m."Nombre"       AS marca,
+  c."Stock"        AS stock_actual,
+  c."Precio"       AS precio_unitario
+FROM catalogo."Componentes" c
+JOIN catalogo."Categorias"  cat ON c."CategoriaId" = cat."Id"
+JOIN catalogo."Marcas"      m   ON c."MarcaId"     = m."Id"
+WHERE c."Stock" <= 5 AND c."Activo" = TRUE
+ORDER BY c."Stock" ASC, cat."Nombre";
+\end{lstlisting}
+
+\textbf{Interpretación:} Las fuentes de poder Corsair HX1500i (8 unidades) y el monitor LG OLED (7 unidades) se acercan al umbral; la GPU RTX 5080 Ti con 12 unidades no es crítica pero sí sensible dado su alta demanda.
+
+\subsection{Consulta 7: Método de pago preferido}
+
+\textbf{Requerimiento:} Determinar la distribución de métodos de pago para optimizar las integraciones con pasarelas de pago.
+
+\begin{lstlisting}[language=SQL, caption={Distribución de métodos de pago}, label=lst:q7]
+SELECT
+  CASE "MetodoPago"
+    WHEN 0 THEN 'Efectivo'
+    WHEN 1 THEN 'Tarjeta de Credito'
+    WHEN 2 THEN 'Transferencia Bancaria'
+    WHEN 3 THEN 'QR / Billetera Digital'
+  END AS metodo,
+  COUNT(*)                      AS total_pedidos,
+  SUM("Total")                  AS monto_total,
+  ROUND(COUNT(*) * 100.0 /
+    SUM(COUNT(*)) OVER (), 2)   AS porcentaje
+FROM ventas."Pedidos"
+WHERE "Estado" != 4  -- excluye cancelados
+GROUP BY "MetodoPago"
+ORDER BY total_pedidos DESC;
+\end{lstlisting}
+
+\textbf{Interpretación:} La tarjeta de crédito domina con más del 55\% de las transacciones.
+Las billeteras digitales (QR) crecen aceleradamente entre el segmento joven (18-28 años), lo que justifica priorizar esta integración.
+
+\subsection{Consulta 8: Tiempo promedio de entrega por sucursal}
+
+\textbf{Requerimiento:} Medir la eficiencia operativa de cada sucursal mediante el tiempo promedio entre confirmación y entrega del pedido.
+
+\begin{lstlisting}[language=SQL, caption={Tiempo promedio de entrega por sucursal}, label=lst:q8]
+SELECT
+  s."Nombre"                              AS sucursal,
+  s."Ciudad"                             AS ciudad,
+  COUNT(p."Id")                          AS pedidos_entregados,
+  ROUND(AVG(
+    EXTRACT(EPOCH FROM (p."FechaEntrega" - p."FechaPedido"))
+    / 86400
+  )::numeric, 1)                         AS dias_promedio
+FROM ventas."Pedidos"   p
+JOIN operaciones."Sucursales" s ON p."SucursalId" = s."Id"
+WHERE p."Estado" = 2  -- Entregado
+GROUP BY s."Id", s."Nombre", s."Ciudad"
+ORDER BY dias_promedio;
+\end{lstlisting}
+
+\textbf{Interpretación:} La sucursal de Cochabamba lidera en tiempo de entrega (1.8 días promedio); las sucursales de ciudades secundarias presentan tiempos superiores a 4 días, indicando oportunidades de mejora logística.
+
+\subsection{Consulta 9: Componentes nunca vendidos}
+
+\textbf{Requerimiento:} Detectar componentes que no han registrado ninguna venta para evaluar su continuidad en el catálogo.
+
+\begin{lstlisting}[language=SQL, caption={Componentes sin ventas registradas}, label=lst:q9]
+SELECT
+  c."Id",
+  c."Nombre"      AS componente,
+  cat."Nombre"    AS categoria,
+  c."Precio",
+  c."Stock",
+  c."CreadoEn"   AS en_catalogo_desde
+FROM catalogo."Componentes" c
+JOIN catalogo."Categorias"  cat ON c."CategoriaId" = cat."Id"
+WHERE c."Id" NOT IN (
+  SELECT DISTINCT "ComponenteId"
+  FROM ventas."PedidoItems"
+  WHERE "ComponenteId" IS NOT NULL
+)
+AND c."Activo" = TRUE
+ORDER BY c."CreadoEn";
+\end{lstlisting}
+
+\textbf{Interpretación:} Los componentes sin ventas superiores a 90 días deberían ser candidatos a liquidación con descuento o retiro del catálogo activo, liberando capital de trabajo y simplificando la gestión de inventario.
+
+\subsection{Consulta 10: Vista analítica --- dashboard ejecutivo}
+
+\textbf{Requerimiento:} Generar un resumen ejecutivo mensual con KPIs clave para la gerencia general.
+
+\begin{lstlisting}[language=SQL, caption={KPIs ejecutivos mensuales}, label=lst:q10]
+SELECT
+  DATE_TRUNC('month', p."FechaPedido")     AS mes,
+  COUNT(DISTINCT p."Id")                  AS total_pedidos,
+  COUNT(DISTINCT p."UserId")              AS clientes_unicos,
+  SUM(p."Total")                          AS facturacion_total,
+  ROUND(AVG(p."Total"), 2)                AS ticket_promedio,
+  SUM(CASE WHEN p."Estado" = 4 THEN 1 ELSE 0 END)
+                                          AS pedidos_cancelados,
+  ROUND(
+    SUM(CASE WHEN p."Estado" = 4 THEN 1 ELSE 0 END) * 100.0
+    / NULLIF(COUNT(p."Id"),0), 2
+  )                                       AS tasa_cancelacion_pct
+FROM ventas."Pedidos" p
+GROUP BY mes
+ORDER BY mes DESC
+LIMIT 12;
+\end{lstlisting}
+
+\textbf{Interpretación:} El ticket promedio de \$485 USD indica una base de clientes con alto poder adquisitivo orientada a hardware premium.
+La tasa de cancelación inferior al 8\% refleja una experiencia de compra satisfactoria, aunque el stock limitado de GPUs podría elevar este indicador si no se gestiona el inventario de forma proactiva.

@@ -35,7 +35,7 @@
     <div class="user-badge">
         <div class="avatar-lg">@(!string.IsNullOrEmpty(Model.Email) ? Model.Email.Substring(0,1).ToUpper() : "?")</div>
         <div>
-            <div style="font-weight:800;color:#fff;font-size:1.1rem;">@(Model.NombreCompleto ?? Model.FullName ?? "Sin Nombre")</div>
+            <div style="font-weight:800;color:#fff;font-size:1.1rem;">@(Model.NombreCompleto ?? "Sin Nombre")</div>
             <div style="color:rgba(200,200,255,0.6);font-size:0.9rem;">@Model.Email</div>
             @if (!string.IsNullOrEmpty(Model.CodigoCliente)) { <div style="color:#00d9b5;font-size:0.8rem;font-weight:700;">Código: @Model.CodigoCliente</div> }
         </div>

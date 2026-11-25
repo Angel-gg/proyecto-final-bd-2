@@ -7,24 +7,46 @@ using EcommerceApp.Models;
 namespace EcommerceApp.Controllers
 {
     /// <summary>
-    /// CRUD de Componentes de hardware — acceso restringido a roles de gestión.
+    /// CRUD de Componentes de hardware normalizado en 3FN — acceso restringido a roles de gestión.
     /// </summary>
     [Authorize(Roles = "GerenteGeneral,GerenteSucursal,Vendedor,Comercial,Admin")]
     public class ComponentesController(ApplicationDbContext db) : Controller
     {
+        private async Task CargarCatalogosAsync()
+        {
+            ViewBag.Categorias = await db.Categorias.Where(c => c.Activa).OrderBy(c => c.Nombre).ToListAsync();
+            ViewBag.Marcas = await db.Marcas.Where(m => m.Activa).OrderBy(m => m.Nombre).ToListAsync();
+            ViewBag.Proveedores = await db.Proveedores.Where(p => p.Activo).OrderBy(p => p.Nombre).ToListAsync();
+        }
+
         // GET /Componentes
         public async Task<IActionResult> Index(string? tipo, string? busqueda)
         {
-            var query = db.Componentes.AsNoTracking().AsQueryable();
+            var query = db.Componentes
+                .Include(c => c.Categoria)
+                .Include(c => c.Marca)
+                .Include(c => c.Proveedor)
+                .AsNoTracking()
+                .AsQueryable();
 
             if (!string.IsNullOrWhiteSpace(tipo))
-                query = query.Where(c => c.Tipo == tipo);
+                query = query.Where(c => c.Categoria != null && c.Categoria.Nombre == tipo);
 
             if (!string.IsNullOrWhiteSpace(busqueda))
-                query = query.Where(c => c.Nombre.Contains(busqueda) || (c.Marca != null && c.Marca.Contains(busqueda)));
+                query = query.Where(c =>
+                    c.Nombre.Contains(busqueda) ||
+                    (c.Marca != null && c.Marca.Nombre.Contains(busqueda)));
 
-            var componentes = await query.OrderBy(c => c.Tipo).ThenBy(c => c.Nombre).ToListAsync();
-            var tipos = await db.Componentes.Select(c => c.Tipo).Distinct().OrderBy(t => t).ToListAsync();
+            var componentes = await query
+                .OrderBy(c => c.Categoria!.Nombre)
+                .ThenBy(c => c.Nombre)
+                .ToListAsync();
+
+            var tipos = await db.Categorias
+                .Where(c => c.Activa)
+                .OrderBy(c => c.Nombre)
+                .Select(c => c.Nombre)
+                .ToListAsync();
 
             ViewBag.Tipos = tipos;
             ViewBag.TipoActual = tipo;
@@ -36,21 +58,39 @@ namespace EcommerceApp.Controllers
         // GET /Componentes/Details/5
         public async Task<IActionResult> Details(int id)
         {
-            var comp = await db.Componentes.FindAsync(id);
+            var comp = await db.Componentes
+                .Include(c => c.Categoria)
+                .Include(c => c.Marca)
+                .Include(c => c.Proveedor)
+                .FirstOrDefaultAsync(c => c.Id == id);
             if (comp == null) return NotFound();
             return View(comp);
         }
 
         // GET /Componentes/Create
         [Authorize(Roles = "GerenteGeneral,GerenteSucursal,Comercial,Admin")]
-        public IActionResult Create() => View();
+        public async Task<IActionResult> Create()
+        {
+            await CargarCatalogosAsync();
+            return View(new Componente());
+        }
 
         // POST /Componentes/Create
         [HttpPost, ValidateAntiForgeryToken]
         [Authorize(Roles = "GerenteGeneral,GerenteSucursal,Comercial,Admin")]
         public async Task<IActionResult> Create(Componente componente)
         {
-            if (!ModelState.IsValid) return View(componente);
+            ModelState.Remove("Categoria");
+            ModelState.Remove("Marca");
+            ModelState.Remove("Proveedor");
+            ModelState.Remove("ComboComponentes");
+
+            if (!ModelState.IsValid)
+            {
+                await CargarCatalogosAsync();
+                return View(componente);
+            }
+
             componente.CreadoEn = DateTime.UtcNow;
             db.Componentes.Add(componente);
             await db.SaveChangesAsync();
@@ -64,6 +104,7 @@ namespace EcommerceApp.Controllers
         {
             var comp = await db.Componentes.FindAsync(id);
             if (comp == null) return NotFound();
+            await CargarCatalogosAsync();
             return View(comp);
         }
 
@@ -73,7 +114,17 @@ namespace EcommerceApp.Controllers
         public async Task<IActionResult> Edit(int id, Componente componente)
         {
             if (id != componente.Id) return NotFound();
-            if (!ModelState.IsValid) return View(componente);
+
+            ModelState.Remove("Categoria");
+            ModelState.Remove("Marca");
+            ModelState.Remove("Proveedor");
+            ModelState.Remove("ComboComponentes");
+
+            if (!ModelState.IsValid)
+            {
+                await CargarCatalogosAsync();
+                return View(componente);
+            }
 
             componente.ActualizadoEn = DateTime.UtcNow;
             db.Componentes.Update(componente);
@@ -86,7 +137,10 @@ namespace EcommerceApp.Controllers
         [Authorize(Roles = "GerenteGeneral,Admin")]
         public async Task<IActionResult> Delete(int id)
         {
-            var comp = await db.Componentes.FindAsync(id);
+            var comp = await db.Componentes
+                .Include(c => c.Categoria)
+                .Include(c => c.Marca)
+                .FirstOrDefaultAsync(c => c.Id == id);
             if (comp == null) return NotFound();
             return View(comp);
         }
@@ -101,7 +155,7 @@ namespace EcommerceApp.Controllers
             {
                 db.Componentes.Remove(comp);
                 await db.SaveChangesAsync();
-                TempData["Exito"] = $"Componente eliminado correctamente.";
+                TempData["Exito"] = "Componente eliminado correctamente.";
             }
             return RedirectToAction(nameof(Index));
         }

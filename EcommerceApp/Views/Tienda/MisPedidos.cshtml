@@ -153,7 +153,8 @@
                             <td>
                                 <span class="metodo-tag">
                                     @(p.MetodoPago == EcommerceApp.Models.MetodoPago.Tarjeta ? "💳" :
-                                      p.MetodoPago == EcommerceApp.Models.MetodoPago.Efectivo ? "💵" : "🏦")
+                                      p.MetodoPago == EcommerceApp.Models.MetodoPago.Efectivo ? "💵" :
+                                      p.MetodoPago == EcommerceApp.Models.MetodoPago.QR ? "📱" : "🏦")
                                     @p.MetodoPago
                                 </span>
                             </td>
@@ -162,10 +163,10 @@
                                 Bs.@p.Total.ToString("N2")
                             </td>
                             <td>
-                                @if (p.Estado == EcommerceApp.Models.EstadoPedido.Completado)
-                                { <span class="estado-badge e-completado">✓ Completado</span> }
-                                else if (p.Estado == EcommerceApp.Models.EstadoPedido.Devuelto)
-                                { <span class="estado-badge e-devuelto">↩ Devuelto</span> }
+                                @if (p.Estado == EcommerceApp.Models.EstadoPedido.Completado || p.Estado == EcommerceApp.Models.EstadoPedido.Entregado)
+                                { <span class="estado-badge e-completado">✓ @p.Estado</span> }
+                                else if (p.Estado == EcommerceApp.Models.EstadoPedido.Devuelto || p.Estado == EcommerceApp.Models.EstadoPedido.Cancelado)
+                                { <span class="estado-badge e-devuelto">↩ @p.Estado</span> }
                                 else
                                 { <span class="estado-badge e-pendiente">⏳ Pendiente</span> }
                             </td>

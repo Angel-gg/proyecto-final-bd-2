@@ -32,7 +32,8 @@
     .form-control-tp:focus { border-color: #6c63ff; }
 
     /* Método de pago */
-    .payment-methods { display: grid; grid-template-columns: repeat(3,1fr); gap: .75rem; }
+    .payment-methods { display: grid; grid-template-columns: repeat(4,1fr); gap: .75rem; }
+    @@media(max-width:560px){ .payment-methods { grid-template-columns: repeat(2,1fr); } }
     .pay-option { display: none; }
     .pay-label {
         display: flex; flex-direction: column; align-items: center; gap: .5rem;
@@ -133,6 +134,14 @@
                         <label for="pay-transferencia" class="pay-label">
                             <span class="pay-icon">🏦</span>
                             <span class="pay-name">Transferencia</span>
+                        </label>
+                    </div>
+                    <div>
+                        <input type="radio" name="metodoPago" id="pay-qr" value="QR"
+                               class="pay-option" />
+                        <label for="pay-qr" class="pay-label">
+                            <span class="pay-icon">📱</span>
+                            <span class="pay-name">QR Simple</span>
                         </label>
                     </div>
                 </div>

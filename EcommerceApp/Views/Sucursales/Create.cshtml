@@ -1,6 +1,7 @@
 @model EcommerceApp.Models.Sucursal
 @{
     ViewData["Title"] = "Nueva Sucursal";
+    var regiones = ViewBag.Regiones as List<EcommerceApp.Models.Region> ?? new();
 }
 <style>
     body { background: #080a14; }
@@ -26,13 +27,23 @@
         </div>
         
         <div class="row">
-            <div class="col-md-6 form-group">
-                <label asp-for="Ciudad" class="form-label">Ciudad</label>
-                <input asp-for="Ciudad" class="form-control" />
+            <div class="col-md-4 form-group">
+                <label asp-for="Ciudad" class="form-label">Ciudad *</label>
+                <input asp-for="Ciudad" class="form-control" required />
             </div>
-            <div class="col-md-6 form-group">
-                <label asp-for="Estado" class="form-label">Estado / Región</label>
+            <div class="col-md-4 form-group">
+                <label asp-for="Estado" class="form-label">Departamento / Estado</label>
                 <input asp-for="Estado" class="form-control" />
+            </div>
+            <div class="col-md-4 form-group">
+                <label asp-for="RegionId" class="form-label">Región Operativa</label>
+                <select asp-for="RegionId" class="form-control" style="background:#14172b;">
+                    <option value="">— Sin región —</option>
+                    @foreach (var r in regiones)
+                    {
+                        <option value="@r.Id">@r.Nombre (@r.Codigo)</option>
+                    }
+                </select>
             </div>
         </div>
 

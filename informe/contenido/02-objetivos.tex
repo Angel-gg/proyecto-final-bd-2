@@ -1,0 +1,21 @@
+% ============================================================================
+%  CAPÍTULO II: OBJETIVOS
+% ============================================================================
+
+\section{Objetivo general}
+
+Rediseñar y optimizar la base de datos PostgreSQL del sistema TechParts ERP mediante la aplicación de estándares de normalización (1FN, 2FN, 3FN), restricciones declarativas, objetos avanzados de PostgreSQL (vistas, funciones, procedimientos almacenados, \textit{triggers}, índices) y separación por esquemas, con el fin de garantizar la integridad, el rendimiento y la trazabilidad de los datos en un entorno de comercio electrónico de hardware gamer.
+
+\section{Objetivos específicos}
+
+\begin{enumerate}
+  \item \textbf{Auditar el estado inicial (``ANTES''):} Identificar y documentar todas las deficiencias de la base de datos en materia de normalización, restricciones, relaciones foráneas y ausencia de objetos avanzados, comparando el esquema real de Supabase con los estándares de Base de Datos II.
+
+  \item \textbf{Diseñar el modelo normalizado (``DESPUÉS''):} Proponer una nueva estructura de tablas que cumpla con la Primera, Segunda y Tercera Forma Normal, incluyendo la separación de atributos multivaluados (\texttt{Tipo}, \texttt{Marca} en \texttt{Componentes}), la eliminación de columnas duplicadas (\texttt{FullName}/\texttt{NombreCompleto}), la creación de tablas auxiliares (\texttt{Categorias}, \texttt{Marcas}, \texttt{Regiones}) y la organización en cinco esquemas de negocio (\texttt{catalogo}, \texttt{ventas}, \texttt{operaciones}, \texttt{seguridad}, \texttt{auditoria}).
+
+  \item \textbf{Implementar restricciones declarativas y relaciones foráneas completas:} Agregar restricciones \texttt{CHECK} sobre rangos de precios, stock, porcentajes de descuento y estados de pedido; restricciones \texttt{UNIQUE} en identificadores naturales; y relaciones foráneas con comportamientos \texttt{ON DELETE} apropiados para cada entidad.
+
+  \item \textbf{Desarrollar objetos avanzados de PostgreSQL:} Crear cuatro vistas analíticas (\texttt{vw\_top\_productos}, \texttt{vw\_ventas\_mensuales}, \texttt{vw\_combos\_rentabilidad}, \texttt{vw\_clientes\_activos}), dos funciones escalares (\texttt{fn\_top\_clientes}, \texttt{fn\_recalcular\_stock\_combos}), un procedimiento transaccional (\texttt{sp\_confirmar\_venta}) con bloqueo pesimista (\texttt{SELECT FOR UPDATE}) y \textit{triggers} de auditoría para \texttt{Componentes} y \texttt{Pedidos}.
+
+  \item \textbf{Optimizar el rendimiento mediante índices y análisis de planes de ejecución:} Definir índices B-Tree sobre columnas de búsqueda frecuente y un índice GIN sobre la columna \texttt{ItemsJson} (JSONB) de \texttt{CarritosAbandonados}, y documentar los planes de ejecución (\texttt{EXPLAIN ANALYZE}) antes y después de la indexación.
+\end{enumerate}

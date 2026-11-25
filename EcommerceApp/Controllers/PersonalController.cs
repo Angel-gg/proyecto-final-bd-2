@@ -9,7 +9,11 @@ namespace EcommerceApp.Controllers
     [Authorize(Roles = "GerenteGeneral,Admin")]
     public class PersonalController(UserManager<ApplicationUser> userManager) : Controller
     {
-        private static readonly string[] RolesDisponibles = { "GerenteGeneral", "GerenteRegional", "GerenteSucursal", "Vendedor", "Comercial", "Cliente", "Admin" };
+        private static readonly string[] RolesDisponibles =
+        {
+            "GerenteGeneral", "GerenteRegional", "GerenteSucursal",
+            "Vendedor", "Comercial", "Cliente", "Admin"
+        };
 
         public async Task<IActionResult> Index(string? search, string? rol)
         {
@@ -18,11 +22,13 @@ namespace EcommerceApp.Controllers
             if (!string.IsNullOrEmpty(search))
             {
                 var s = search.ToLower();
-                usersQuery = usersQuery.Where(u => u.Email!.ToLower().Contains(s) || (u.NombreCompleto != null && u.NombreCompleto.ToLower().Contains(s)) || (u.FullName != null && u.FullName.ToLower().Contains(s)));
+                usersQuery = usersQuery.Where(u =>
+                    u.Email!.ToLower().Contains(s) ||
+                    (u.NombreCompleto != null && u.NombreCompleto.ToLower().Contains(s)));
             }
 
             var users = await usersQuery.OrderByDescending(u => u.CreatedAt).ToListAsync();
-            
+
             var userRoles = new Dictionary<string, IList<string>>();
             foreach (var u in users)
             {
@@ -63,8 +69,7 @@ namespace EcommerceApp.Controllers
 
             selectedRoles ??= new List<string>();
             var currentRoles = await userManager.GetRolesAsync(user);
-            
-            // Check if removing the last GerenteGeneral
+
             if (currentRoles.Contains("GerenteGeneral") && !selectedRoles.Contains("GerenteGeneral"))
             {
                 var gerentes = await userManager.GetUsersInRoleAsync("GerenteGeneral");

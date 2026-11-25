@@ -1,0 +1,156 @@
+% ============================================================================
+%  04-01: DIAGNÓSTICO DEL ESTADO ANTES
+% ============================================================================
+
+\section{Diagnóstico del estado actual (``ANTES'')}
+
+\subsection{Inventario de tablas y restricciones}
+
+La siguiente tabla resume el estado real del esquema \texttt{public} de Supabase al inicio del proyecto, obtenido mediante consulta directa a \texttt{pg\_constraint} e \texttt{information\_schema.columns}.
+
+\begin{center}
+\begin{tablaAPA}
+\begin{tabular}{L{3.2cm} C{1.4cm} C{1.4cm} C{1.4cm} C{1.4cm} L{4.2cm}}
+\toprule
+\textbf{Tabla} & \textbf{PK} & \textbf{FK} & \textbf{CHECK} & \textbf{UNIQUE} & \textbf{Notas} \\
+\midrule
+AspNetUsers        & 1 & 0 & 0 & 0 & Columnas duplicadas; SucursalId sin FK \\
+AspNetRoles        & 1 & 0 & 0 & 0 & --- \\
+AspNetUserRoles    & 1 & 2 & 0 & 0 & CASCADE interno \\
+AspNetUserClaims   & 1 & 1 & 0 & 0 & --- \\
+AspNetRoleClaims   & 1 & 1 & 0 & 0 & --- \\
+AspNetUserLogins   & 1 & 1 & 0 & 0 & --- \\
+AspNetUserTokens   & 1 & 1 & 0 & 0 & --- \\
+Componentes        & 1 & 0 & 0 & 0 & Tipo/Marca como texto libre \\
+Combos             & 1 & 0 & 0 & 0 & Sin restricción de Descuento \\
+ComboComponentes   & 1 & 2 & 0 & 0 & Cantidad sin CHECK \\
+Pedidos            & 1 & 1 & 0 & 0 & Estado como enum int sin CHECK \\
+PedidoItems        & 1 & 1 & 0 & 0 & ProductoId sin FK real \\
+CarritosAbandonados& 1 & 1 & 0 & 0 & ItemsJson como TEXT \\
+Sucursales         & 1 & 0 & 0 & 0 & Sin FK desde ninguna tabla \\
+Proveedores        & 1 & 0 & 0 & 0 & Sin FK desde ninguna tabla \\
+Products           & 1 & 0 & 0 & 0 & Tabla legacy en inglés, sin relaciones \\
+\_\_EFMigrationsHistory & 1 & 0 & 0 & 0 & Metadato EF Core, intocable \\
+\midrule
+\textbf{TOTAL} & \textbf{17} & \textbf{11} & \textbf{0} & \textbf{0} & 28 restricciones totales \\
+\bottomrule
+\end{tabular}
+\end{tablaAPA}
+\captionof{table}{Inventario de restricciones del esquema \texttt{public} --- Estado ANTES}
+\label{tab:inventario-antes}
+\end{center}
+
+\subsection{Diagrama Entidad-Relación --- Estado ANTES}
+
+\figuraAPA{fig:der-antes}{Diagrama Entidad-Relación del esquema \texttt{public} --- Estado ANTES}{%
+\begin{tikzpicture}[
+  nodo/.style={draw, rectangle, rounded corners=3pt, fill=white, minimum width=2.5cm, minimum height=0.7cm, font=\small\bfseries, align=center},
+  attr/.style={draw, ellipse, fill=gray!10, font=\footnotesize, minimum width=1.8cm, minimum height=0.5cm},
+  rel/.style={draw, diamond, fill=yellow!20, font=\footnotesize, aspect=2, minimum width=1.8cm},
+  fk/.style={-Stealth, thick},
+  nofk/.style={-Stealth, dashed, red, thick},
+  node distance=1.4cm and 2.0cm
+]
+
+% Tablas Identity
+\node[nodo, fill=blue!10] (users) {AspNetUsers};
+\node[nodo, fill=blue!10, right=2.5cm of users] (roles) {AspNetRoles};
+\node[nodo, fill=blue!10, below=1.0cm of users] (userroles) {AspNetUserRoles};
+
+% Tablas negocio
+\node[nodo, fill=green!10, below=2.0cm of userroles] (componentes) {Componentes};
+\node[nodo, fill=green!10, right=2.5cm of componentes] (combos) {Combos};
+\node[nodo, fill=green!10, right=2.5cm of combos] (combocomp) {ComboCompo\\nentes};
+\node[nodo, fill=orange!10, left=2.5cm of componentes] (pedidos) {Pedidos};
+\node[nodo, fill=orange!10, below=1.4cm of pedidos] (pedidoitems) {PedidoItems};
+\node[nodo, fill=orange!10, right=2.5cm of pedidoitems] (carritos) {CarritosAbandonados};
+
+% Tablas huérfanas
+\node[nodo, fill=red!15, below=1.4cm of componentes] (sucursales) {Sucursales};
+\node[nodo, fill=red!15, right=2.0cm of sucursales] (proveedores) {Proveedores};
+\node[nodo, fill=red!15, right=2.0cm of proveedores] (products) {Products};
+
+% FK con integridad real
+\draw[fk] (userroles) -- node[right,font=\tiny]{FK CASCADE} (users);
+\draw[fk] (userroles.north east) -- node[above,font=\tiny]{FK CASCADE} (roles.south west);
+\draw[fk] (pedidos) -- node[right,font=\tiny]{FK RESTRICT} (users);
+\draw[fk] (pedidoitems) -- node[right,font=\tiny]{FK CASCADE} (pedidos);
+\draw[fk] (carritos) -- node[above,font=\tiny]{FK CASCADE} (users);
+\draw[fk] (combocomp) -- node[above,font=\tiny]{FK CASCADE} (combos);
+\draw[fk] (combocomp.south) -- node[right,font=\tiny]{FK RESTRICT} (componentes.north east);
+
+% Referencia polimórfica sin FK
+\draw[nofk] (pedidoitems.east) -- node[below,font=\tiny,red]{sin FK real} (componentes.south west);
+
+% Sin conexiones (huérfanas)
+\node[right=0.5cm of products, font=\tiny, red, text width=2cm] {sin FK\\ni relaciones};
+
+\end{tikzpicture}%
+}{Elaboraci\'on propia con base en la consulta a \texttt{pg\_constraint} del esquema \texttt{public} de Supabase}
+
+\subsection{Anomalías y deficiencias detectadas}
+
+\subsubsection{Columnas duplicadas en \texttt{AspNetUsers}}
+
+La tabla \texttt{AspNetUsers} contiene dos columnas con la misma semántica:
+\texttt{FullName} (\texttt{varchar}) y \texttt{NombreCompleto} (\texttt{varchar}).
+Ambas se asignan simultáneamente en \texttt{Program.cs} y en el controlador de cuenta.
+Esta redundancia viola la \textbf{Tercera Forma Normal (3FN)}: una columna determina funcionalmente a la otra sin ser clave, creando anomalías de actualización (si se modifica una sin la otra, el registro queda inconsistente).
+
+Adicionalmente, \texttt{SucursalId} y \texttt{RegionId} son columnas de tipo \texttt{integer} sin clave foránea correspondiente; no existe la tabla \texttt{Regiones} en el esquema.
+
+\subsubsection{Tabla \texttt{Products} legacy}
+
+La tabla \texttt{Products} fue generada por el andamiaje inicial (scaffold) de EF Core con columnas en inglés (\texttt{Name}, \texttt{Price}, \texttt{StockQuantity}) mientras que el resto del modelo usa español (\texttt{Nombre}, \texttt{Precio}, \texttt{Stock}).
+No tiene ninguna relación foránea ni es referenciada por ninguna otra tabla; el controlador \texttt{ProductsController} existe pero es código muerto en el flujo de ventas.
+
+\subsubsection{Referencia polimórfica sin FK en \texttt{PedidoItems}}
+
+\texttt{PedidoItems} contiene las columnas \texttt{Tipo} (\texttt{text}: ``Componente'' o ``Combo'') y \texttt{ProductoId} (\texttt{integer}).
+El motor de base de datos no puede crear una FK sobre esta pareja porque \texttt{ProductoId} podría apuntar a \texttt{Componentes.Id} o a \texttt{Combos.Id} dependiendo del valor de \texttt{Tipo}.
+El resultado es que PostgreSQL no puede garantizar la integridad referencial: un pedido puede referenciar un componente o combo inexistente sin que el motor lo detecte.
+
+\subsubsection{Atributos multivaluados en \texttt{Componentes}}
+
+Las columnas \texttt{Tipo} y \texttt{Marca} en \texttt{Componentes} son cadenas de texto libre.
+Esto produce:
+\begin{itemize}
+  \item \textbf{Anomalías de modificación:} cambiar el nombre de una categoría requiere actualizar múltiples filas.
+  \item \textbf{Inconsistencias tipográficas:} ``Tarjetas de Video'', ``GPU'', ``Grafica'' pueden referirse al mismo tipo.
+  \item \textbf{Violación de 2FN:} en una tabla con clave simple (\texttt{Id}), estos atributos podrían normalizarse en tablas de referencia (\texttt{Categorias}, \texttt{Marcas}).
+\end{itemize}
+
+\subsubsection{Ausencia total de restricciones CHECK y UNIQUE}
+
+Según la consulta a \texttt{pg\_constraint}, existen \textbf{0 restricciones CHECK} y \textbf{0 restricciones UNIQUE} en el esquema \texttt{public}.
+Esto significa que PostgreSQL no impide:
+\begin{itemize}
+  \item Precios negativos en \texttt{Componentes.Precio} o \texttt{Combos.PrecioBase}.
+  \item Stock negativo en \texttt{Componentes.Stock}.
+  \item Descuentos fuera del rango $[0, 100]$ en \texttt{Combos.Descuento}.
+  \item Emails duplicados en \texttt{AspNetUsers} (ASP.NET Identity lo gestiona por código, no por constraint de BD).
+\end{itemize}
+
+\begin{center}
+\begin{tablaAPA}
+\begin{tabular}{L{4.0cm} L{4.5cm} L{4.5cm}}
+\toprule
+\textbf{Deficiencia} & \textbf{Impacto} & \textbf{Acción correctiva} \\
+\midrule
+Columnas duplicadas FullName/NombreCompleto & Anomalías de actualización, inconsistencia & Eliminar FullName, conservar NombreCompleto \\
+SucursalId/RegionId sin FK & Registros huérfanos no detectables & Crear tabla Regiones y añadir FK \\
+Products sin relaciones & Código muerto, confusión de modelo & Eliminar tabla o integrar a Componentes \\
+Tipo/Marca texto libre & Inconsistencias, violación 2FN & Crear tablas Categorias y Marcas \\
+PedidoItems sin FK real & Pedidos con referencias inválidas & Columnas separadas ComponenteId y ComboId \\
+ItemsJson como TEXT & Sin validación ni índice GIN & Migrar a JSONB \\
+0 restricciones CHECK & Datos inválidos en BD & Añadir CHECK en Precio, Stock, Descuento \\
+0 restricciones UNIQUE & Duplicados en claves naturales & Añadir UNIQUE en Email, Nombre \\
+Sin vistas ni funciones & Sin analítica en BD & Crear 4 vistas y 2 funciones \\
+Sin triggers ni auditoría & Sin trazabilidad de cambios & Crear triggers de auditoría \\
+Sin índices & Consultas lentas en tablas grandes & Crear índices B-Tree y GIN \\
+\bottomrule
+\end{tabular}
+\end{tablaAPA}
+\captionof{table}{Resumen de deficiencias y acciones correctivas --- Estado ANTES}
+\label{tab:deficiencias}
+\end{center}

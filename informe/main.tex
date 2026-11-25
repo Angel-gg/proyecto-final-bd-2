@@ -1,0 +1,82 @@
+% ============================================================================
+%  INFORME ACADÉMICO — Base de Datos II — UPDS Cochabamba
+%  Autor: Angel Gabriel Rojas Hinojosa
+%  Docente: Ing. Lineth Coca Cindy
+% ============================================================================
+
+\documentclass[12pt,a4paper]{article}
+
+\usepackage{formato/preambulo}
+\usepackage{formato/datos-institucion}
+
+% ============================================================================
+%  DATOS DEL DOCUMENTO
+% ============================================================================
+\newcommand{\tituloDocumento}{Redise\~no y Optimizaci\'on de Base de Datos para Sistema de Gesti\'on Comercial de Hardware Gamer --- TechParts ERP}
+\newcommand{\equipo}{Trabajo Individual}
+\newcommand{\integrantes}{Angel Gabriel Rojas Hinojosa}
+\newcommand{\asignatura}{Base de Datos II}
+\newcommand{\docente}{Ing. Lineth Coca Cindy}
+\newcommand{\fechaEntrega}{25/11/2026}
+
+\begin{document}
+
+\pagenumbering{roman}
+\input{formato/portada}
+
+\newpage
+{\indicesCompactos\tableofcontents}
+\newpage
+{\indicesCompactos\listoftables}
+\newpage
+{\indicesCompactos\listoffigures}
+\clearpage
+
+\pagenumbering{arabic}
+
+% --- CAP\'ITULO I --------------------------------------------------------------
+\caratulaCapitulo{CAP\'ITULO I}{INTRODUCCI\'ON}
+\input{contenido/01-introduccion}
+
+% --- CAP\'ITULO II -------------------------------------------------------------
+\caratulaCapitulo{CAP\'ITULO II}{OBJETIVOS, ALCANCE Y L\'IMITES}
+\input{contenido/02-objetivos}
+\input{contenido/03-alcance}
+
+% --- CAP\'ITULO III ------------------------------------------------------------
+\caratulaCapitulo{CAP\'ITULO III}{DESARROLLO DEL TRABAJO}
+\input{contenido/04-desarrollo}
+
+% --- CONCLUSIONES ------------------------------------------------------------
+\newpage
+\encabezadoCapitulo{CONCLUSIONES}{}
+\addcontentsline{toc}{part}{CONCLUSIONES}
+\begingroup
+\setcounter{capitulo}{4}
+\setcounter{section}{0}
+\renewcommand{\thesection}{4.}
+\renewcommand{\theHsection}{4.}
+\renewcommand{\thesubsection}{4.\arabic{subsection}}
+\renewcommand{\theHsubsection}{4.\arabic{subsection}}
+\renewcommand{\thesubsubsection}{4.\arabic{subsection}.\arabic{subsubsection}}
+\renewcommand{\theHsubsubsection}{4.\arabic{subsection}.\arabic{subsubsection}}
+\input{contenido/05-conclusiones}
+\endgroup
+
+% --- Referencias -------------------------------------------------------------
+\newpage
+\encabezadoCapitulo{REFERENCIAS}{}
+\addcontentsline{toc}{part}{REFERENCIAS}
+\bibliographystyle{apacite}
+\nocite{*}
+\bibliography{formato/referencias}
+
+% --- Anexos -------------------------------------------------------------------
+\newpage
+\encabezadoCapitulo{ANEXOS}{}
+\pdfbookmark[0]{ANEXOS}{anexos}%
+\addcontentsline{toc}{part}{ANEXOS}
+\appendix
+\input{anexos/script-sql}
+
+\end{document}
