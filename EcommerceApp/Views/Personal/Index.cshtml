@@ -5,6 +5,7 @@
     var userRoles = ViewBag.UserRoles as Dictionary<string, IList<string>> ?? new Dictionary<string, IList<string>>();
     var search = ViewBag.Search as string;
     var rolActual = ViewBag.RolActual as string;
+    var currentUserId = ViewBag.CurrentUserId as string;
 }
 <style>
     body { background: #080a14; }
@@ -32,8 +33,12 @@
     .rb-default { background:rgba(59,130,246,0.15);color:#93c5fd;border:1px solid rgba(59,130,246,0.3); }
     .btn-edit { background:rgba(167,139,250,0.15);color:#c4b5fd;border:1px solid rgba(167,139,250,0.3);border-radius:8px;padding:0.4rem 0.8rem;font-size:0.8rem;font-weight:600;text-decoration:none;transition:all 0.2s;display:inline-block; }
     .btn-edit:hover { background:rgba(167,139,250,0.3);color:#fff; }
+    .btn-delete { background:rgba(239,68,68,0.15);color:#fca5a5;border:1px solid rgba(239,68,68,0.35);border-radius:8px;padding:0.4rem 0.75rem;font-size:0.8rem;font-weight:600;cursor:pointer;transition:all 0.2s; }
+    .btn-delete:hover { background:rgba(239,68,68,0.35);color:#fff; }
+    .actions-wrap { display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap; }
     .alert-msg { margin:0 2rem 1.5rem;padding:0.85rem 1.25rem;border-radius:10px;font-size:0.88rem;font-weight:600; }
     .alert-ok { background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.3);color:#10b981; }
+    .alert-err { background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.35);color:#f87171; }
 </style>
 
 <div class="page-hero">
@@ -44,6 +49,10 @@
 @if (TempData["Exito"] != null)
 {
     <div class="alert-msg alert-ok">✓ @TempData["Exito"]</div>
+}
+@if (TempData["Error"] != null)
+{
+    <div class="alert-msg alert-err">⚠ @TempData["Error"]</div>
 }
 
 <form method="get" class="toolbar">
@@ -114,7 +123,20 @@
                     </td>
                     <td>@u.CreatedAt.ToString("dd/MM/yyyy")</td>
                     <td>
-                        <a asp-action="EditarRol" asp-route-id="@u.Id" class="btn-edit">✏️ Modificar Roles</a>
+                        @{
+                            var esProtegido = u.Id == currentUserId ||
+                                (!string.IsNullOrEmpty(u.Email) && u.Email.EndsWith("@techparts.com", StringComparison.OrdinalIgnoreCase));
+                        }
+                        <div class="actions-wrap">
+                            <a asp-action="EditarRol" asp-route-id="@u.Id" class="btn-edit">✏️ Modificar Roles</a>
+                            @if (!esProtegido)
+                            {
+                                <form asp-action="EliminarUsuario" asp-route-id="@u.Id" method="post" style="margin:0;display:inline;">
+                                    @Html.AntiForgeryToken()
+                                    <button type="submit" class="btn-delete" onclick="return confirm('¿Seguro que deseas eliminar este usuario?');">🗑️ Eliminar</button>
+                                </form>
+                            }
+                        </div>
                     </td>
                 </tr>
             }

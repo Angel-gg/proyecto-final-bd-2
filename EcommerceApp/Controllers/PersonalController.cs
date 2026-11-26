@@ -2,12 +2,13 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using EcommerceApp.Data;
 using EcommerceApp.Models;
 
 namespace EcommerceApp.Controllers
 {
     [Authorize(Roles = "GerenteGeneral,Admin")]
-    public class PersonalController(UserManager<ApplicationUser> userManager) : Controller
+    public class PersonalController(UserManager<ApplicationUser> userManager, ApplicationDbContext db) : Controller
     {
         private static readonly string[] RolesDisponibles =
         {
@@ -44,6 +45,7 @@ namespace EcommerceApp.Controllers
             ViewBag.UserRoles = userRoles;
             ViewBag.Search = search;
             ViewBag.RolActual = rol;
+            ViewBag.CurrentUserId = userManager.GetUserId(User);
 
             return View(users);
         }
@@ -90,6 +92,65 @@ namespace EcommerceApp.Controllers
                 await userManager.AddToRolesAsync(user, rolesToAdd);
 
             TempData["Exito"] = $"Roles actualizados para {user.Email}.";
+            return RedirectToAction(nameof(Index));
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> EliminarUsuario(string id)
+        {
+            if (string.IsNullOrWhiteSpace(id))
+            {
+                TempData["Error"] = "Identificador de usuario inválido.";
+                return RedirectToAction(nameof(Index));
+            }
+
+            var user = await userManager.FindByIdAsync(id);
+            if (user == null)
+            {
+                TempData["Error"] = "El usuario especificado no existe.";
+                return RedirectToAction(nameof(Index));
+            }
+
+            if (user.Id == userManager.GetUserId(User))
+            {
+                TempData["Error"] = "No puedes eliminar tu propia cuenta mientras estás autenticado.";
+                return RedirectToAction(nameof(Index));
+            }
+
+            if (!string.IsNullOrEmpty(user.Email) &&
+                user.Email.EndsWith("@techparts.com", StringComparison.OrdinalIgnoreCase))
+            {
+                TempData["Error"] = "No se pueden eliminar cuentas institucionales @techparts.com.";
+                return RedirectToAction(nameof(Index));
+            }
+
+            if (await db.Pedidos.AnyAsync(p => p.UserId == id))
+            {
+                TempData["Error"] = "No se puede eliminar el usuario porque tiene historial de pedidos registrado (integridad referencial RESTRICT).";
+                return RedirectToAction(nameof(Index));
+            }
+
+            var carritos = await db.CarritosAbandonados
+                .Where(c => c.UserId == id)
+                .ToListAsync();
+            if (carritos.Any())
+            {
+                db.CarritosAbandonados.RemoveRange(carritos);
+                await db.SaveChangesAsync();
+            }
+
+            var result = await userManager.DeleteAsync(user);
+            if (result.Succeeded)
+            {
+                TempData["Exito"] = "Usuario eliminado correctamente.";
+            }
+            else
+            {
+                TempData["Error"] = "No se pudo eliminar el usuario: " +
+                    string.Join(", ", result.Errors.Select(e => e.Description));
+            }
+
             return RedirectToAction(nameof(Index));
         }
 
