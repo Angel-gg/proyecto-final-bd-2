@@ -1,0 +1,32 @@
+\frametitle{10. Integraci\'on \texttt {.NET 10} y Sostenibilidad (ODS)}\framesubtitle {Sincronizaci\'on Backend C\# + Impacto ODS 8 y ODS 12}
+  \begin{columns}[T,totalwidth=\textwidth]
+    \begin{column}{0.51\textwidth}
+      {\scriptsize\textbf{\color{updsNavy}Fluent API + Llamada Transaccional en \texttt{TiendaController}}}
+\begin{lstlisting}[language={[Sharp]C}]
+// ApplicationDbContext.cs (EF Core 10)
+e.ToTable("Componentes", "catalogo", t =>
+  t.HasCheckConstraint("ck_componentes_precio", "\"Precio\" > 0"));
+e.HasIndex(c => c.ItemsJson).HasMethod("gin");
+
+// TiendaController.ProcesarPago()
+await using var cmd = new NpgsqlCommand(
+  "CALL ventas.sp_confirmar_venta(@p_user_id, " +
+  "@p_numero_pedido, @p_items, @p_metodo_pago, " +
+  "@p_sucursal_id, @p_notas, @p_pedido_id)", conn);
+\end{lstlisting}
+      {\scriptsize Captura \texttt{PostgresException} ante \texttt{ROLLBACK} y notifica al cliente sin corromper sesi\'on.}
+    \end{column}
+    \begin{column}{0.46\textwidth}
+      \cardBox[updsBlue]{ODS 8: Crecimiento Econ\'omico PYME}{%
+        Automatizaci\'on de KPIs gerenciales, control multiregional (Cochabamba, La Paz, Santa Cruz) y c\'alculo exacto de comisiones.
+      }
+
+      \vspace{2.5mm}
+      \cardBox[updsTeal]{ODS 12: Consumo Responsable y RAEE}{%
+        \begin{itemize}\setlength{\itemsep}{1.5pt}
+          \item Prevenci\'on de sobreventa y env\'ios fallidos.
+          \item Tabla \texttt{auditoria.MermasInventario} y \texttt{EstadoObsolescencia}: trazabilidad hacia \texttt{Reacondicionado} y \texttt{ReciclajeCertificado} RAEE.
+        \end{itemize}
+      }
+    \end{column}
+  \end{columns}

@@ -1,0 +1,670 @@
+% ============================================================================
+%  PRESENTACIÓN EJECUTIVA DE DEFENSA — BASE DE DATOS II (UPDS COCHABAMBA)
+%  Proyecto: TechParts ERP (Supabase PostgreSQL + ASP.NET Core .NET 10 Render)
+%  Autor: Angel Gabriel Rojas Hinojosa
+%  Docente: Ing. Lineth Coca Cindy
+% ============================================================================
+
+\documentclass[aspectratio=169,10pt]{beamer}
+
+\usepackage[spanish,es-tabla,es-noshorthands]{babel}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[scaled=0.95]{helvet}
+\renewcommand{\familydefault}{\sfdefault}
+
+\usepackage{graphicx}
+\graphicspath{{figuras/}}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{tikz}
+\usetikzlibrary{shapes.geometric, arrows.meta, positioning, calc, fit}
+\usepackage{listings}
+\usepackage{upquote}
+
+% --- Paleta ejecutiva sobria (Azul Marino / Gris Pizarra) --------------------
+\definecolor{updsNavy}{RGB}{15, 34, 64}
+\definecolor{updsBlue}{RGB}{28, 78, 138}
+\definecolor{updsSlate}{RGB}{45, 55, 72}
+\definecolor{updsMuted}{RGB}{100, 116, 139}
+\definecolor{updsLight}{RGB}{243, 246, 250}
+\definecolor{updsBorder}{RGB}{203, 213, 225}
+\definecolor{updsTeal}{RGB}{13, 130, 118}
+\definecolor{updsRed}{RGB}{185, 28, 28}
+\definecolor{updsAmber}{RGB}{180, 83, 9}
+
+% --- Configuración visual de Beamer -----------------------------------------
+\setbeamertemplate{navigation symbols}{}
+\setbeamersize{text margin left=8mm, text margin right=8mm}
+
+\setbeamercolor{normal text}{fg=updsSlate, bg=white}
+\setbeamercolor{structure}{fg=updsNavy}
+\setbeamercolor{frametitle}{fg=white, bg=updsNavy}
+\setbeamercolor{itemize item}{fg=updsBlue}
+\setbeamercolor{itemize subitem}{fg=updsTeal}
+\setbeamertemplate{itemize items}[circle]
+
+% Encabezado limpio en azul marino
+\setbeamertemplate{frametitle}{%
+  \nointerlineskip
+  \begin{beamercolorbox}[wd=\paperwidth, ht=8.2mm, dp=2.4mm, leftskip=8mm, rightskip=8mm]{frametitle}%
+    \textbf{\large\insertframetitle}%
+    \hfill{\footnotesize\color{white!75!updsNavy}\insertframesubtitle}%
+  \end{beamercolorbox}%
+}
+
+% Pie de página ejecutivo con autor y numeración
+\setbeamertemplate{footline}{%
+  \hbox{%
+    \begin{beamercolorbox}[wd=\paperwidth, ht=5.2mm, dp=1.8mm, leftskip=8mm, rightskip=8mm]{footline}%
+      \color{updsBorder}\hrule height 0.5pt\vspace{1.2mm}%
+      \scriptsize\color{updsMuted}%
+      \textbf{\color{updsNavy}Angel Gabriel Rojas Hinojosa}%
+      \hfill TechParts ERP \,|\, Base de Datos II --- UPDS Cochabamba%
+      \hfill \textbf{\color{updsNavy}\insertframenumber{} / \inserttotalframenumber}%
+    \end{beamercolorbox}%
+  }%
+}
+
+% Estilo compacto para código SQL / C#
+\lstset{
+  basicstyle=\scriptsize\ttfamily\color{updsSlate},
+  backgroundcolor=\color{updsLight},
+  rulecolor=\color{updsBorder},
+  frame=single,
+  framesep=3pt,
+  showstringspaces=false,
+  upquote=true,
+  breaklines=true,
+  keywordstyle=\bfseries\color{updsBlue},
+  commentstyle=\itshape\color{updsMuted},
+  aboveskip=3pt,
+  belowskip=3pt
+}
+
+% Caja ejecutiva reutilizable
+\newcommand{\cardBox}[3][updsBlue]{%
+  \begin{tikzpicture}
+    \node[draw=updsBorder, fill=updsLight, rounded corners=3pt,
+          inner sep=5pt, text width=\dimexpr\linewidth-12pt\relax, align=left] (box) {%
+      {\footnotesize\bfseries\color{#1}#2}\\[2pt]
+      {\footnotesize\color{updsSlate}#3}%
+    };
+    \draw[#1, line width=2.2pt] (box.north west) -- (box.south west);
+  \end{tikzpicture}%
+}
+
+\begin{document}
+
+% ============================================================================
+% DIAPOSITIVA 1: PORTADA
+% ============================================================================
+\begin{frame}[plain]
+  \begin{tikzpicture}[remember picture, overlay]
+    \fill[updsNavy] (current page.north west) rectangle (current page.south east);
+    \fill[updsBlue] (current page.south west) rectangle ([yshift=4mm]current page.south east);
+    \fill[updsTeal] ([xshift=-55mm]current page.north east) -- (current page.north east)
+                    -- ([yshift=-55mm]current page.north east) -- cycle;
+  \end{tikzpicture}
+
+  \vspace{4mm}
+  \begin{columns}[T,totalwidth=\textwidth]
+    \begin{column}{0.82\textwidth}
+      {\footnotesize\color{white!75}\textbf{UNIVERSIDAD PRIVADA DOMINGO SAVIO \,|\, SEDE COCHABAMBA}}\\[1mm]
+      {\scriptsize\color{white!65}FACULTAD DE INGENIER\'IA --- CARRERA DE INGENIER\'IA EN SISTEMAS}
+    \end{column}
+    \begin{column}{0.16\textwidth}
+      \raggedleft
+      \IfFileExists{figuras/logo.png}{%
+        \includegraphics[height=12mm]{logo.png}%
+      }{}
+    \end{column}
+  \end{columns}
+
+  \vspace{7mm}
+  {\color{updsTeal}\rule{22mm}{2pt}}\\[3mm]
+  {\LARGE\bfseries\color{white}Redise\~no y Optimizaci\'on de Base de Datos\\[1mm]
+   Multiesquema para Hardware Gamer}\\[3mm]
+  {\normalsize\color{white!85}\textbf{TechParts ERP} --- PostgreSQL (Supabase) + ASP.NET Core (.NET 10 en Render)}
+
+  \vspace{8mm}
+  \begin{columns}[T,totalwidth=\textwidth]
+    \begin{column}{0.36\textwidth}
+      {\scriptsize\color{white!60}AUTOR}\\[0.5mm]
+      {\small\bfseries\color{white}Angel Gabriel Rojas Hinojosa}
+    \end{column}
+    \begin{column}{0.36\textwidth}
+      {\scriptsize\color{white!60}DOCENTE}\\[0.5mm]
+      {\small\bfseries\color{white}Ing. Lineth Coca Cindy}
+    \end{column}
+    \begin{column}{0.26\textwidth}
+      {\scriptsize\color{white!60}ASIGNATURA / FECHA}\\[0.5mm]
+      {\small\bfseries\color{white}Base de Datos II \,|\, 11/2026}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+% ============================================================================
+% DIAPOSITIVA 2: CONTEXTO Y PROBLEMÁTICA
+% ============================================================================
+\begin{frame}{1. Contexto y Problem\'atica}{TechParts ERP en Producci\'on}
+  \begin{columns}[T,totalwidth=\textwidth]
+    \begin{column}{0.48\textwidth}
+      \cardBox[updsNavy]{Ecosistema Tecnol\'ogico}{%
+        \begin{itemize}\setlength{\itemsep}{2pt}
+          \item \textbf{Dominio:} E-Commerce B2C y gesti\'on comercial de hardware gamer de alta gama.
+          \item \textbf{Backend:} ASP.NET Core MVC (\texttt{.NET 10}), EF Core 10 y \texttt{Npgsql} en \textbf{Render}.
+          \item \textbf{Motor BD:} PostgreSQL administrado en \textbf{Supabase} (\textit{us-west-2}).
+        \end{itemize}
+      }
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \cardBox[updsRed]{Riesgos Cr\'iticos del Esquema Inicial}{%
+        \begin{itemize}\setlength{\itemsep}{2pt}
+          \item \textbf{Integridad fr\'agil:} \textbf{0} restricciones \texttt{CHECK} y \textbf{0} \texttt{UNIQUE} en el motor.
+          \item \textbf{Sobreventa:} Confirmaci\'on de pagos sin descuento at\'omico ni bloqueo de stock.
+          \item \textbf{Sin trazabilidad:} Cero vistas anal\'iticas, funciones, triggers ni \'indices de negocio.
+        \end{itemize}
+      }
+    \end{column}
+  \end{columns}
+
+  \vspace{4mm}
+  \cardBox[updsTeal]{Objetivo del Redise\~no}{%
+    Trasladar las reglas de integridad, concurrencia y auditor\'ia directamente al motor PostgreSQL bajo est\'andares \textbf{3FN}, sincronizando al 100\,\% el backend \texttt{.NET 10}.
+  }
+\end{frame}
+
+% ============================================================================
+% DIAPOSITIVA 3: AUDITORÍA ESTADO ANTES
+% ============================================================================
+\begin{frame}{2. Auditor\'ia del Estado ANTES}{Esquema Monol\'itico \texttt{public}}
+  \begin{columns}[c,totalwidth=\textwidth]
+    \begin{column}{0.43\textwidth}
+      {\footnotesize
+      \renewcommand{\arraystretch}{1.15}
+      \begin{tabular}{@{}l r@{}}
+        \toprule
+        \textbf{Indicador auditado} & \textbf{Estado ANTES} \\
+        \midrule
+        Tablas en \texttt{public} & 17 tablas \\
+        Claves primarias / for\'aneas & 17 PK \,/\, 11 FK \\
+        Restricciones \texttt{CHECK} & \textbf{\color{updsRed}0} \\
+        Restricciones \texttt{UNIQUE} & \textbf{\color{updsRed}0} \\
+        \midrule
+        \multicolumn{2}{@{}l@{}}{\textbf{Deficiencias estructurales:}} \\
+        \multicolumn{2}{@{}l@{}}{\scriptsize $\bullet$ \texttt{FullName} y \texttt{NombreCompleto} duplicados} \\
+        \multicolumn{2}{@{}l@{}}{\scriptsize $\bullet$ \texttt{Products} legacy en ingl\'es (c\'odigo muerto)} \\
+        \multicolumn{2}{@{}l@{}}{\scriptsize $\bullet$ \texttt{Sucursales} y \texttt{Proveedores} hu\'erfanas} \\
+        \multicolumn{2}{@{}l@{}}{\scriptsize $\bullet$ \texttt{PedidoItems} polim\'orfica sin FK real} \\
+        \bottomrule
+      \end{tabular}}
+    \end{column}
+    \begin{column}{0.55\textwidth}
+      \centering
+      \resizebox{\linewidth}{!}{%
+        \begin{tikzpicture}[
+          nodo/.style={draw=updsSlate, rectangle, rounded corners=3pt, fill=white, minimum width=2.5cm, minimum height=0.65cm, font=\footnotesize\bfseries, align=center},
+          fk/.style={-Stealth, thick, updsNavy},
+          nofk/.style={-Stealth, dashed, updsRed, thick}
+        ]
+          \node[nodo, fill=updsBlue!12] (users) at (3.0,0) {AspNetUsers};
+          \node[nodo, fill=updsBlue!12] (roles) at (7.8,0) {AspNetRoles};
+          \node[nodo, fill=updsBlue!12] (userroles) at (3.0,-1.4) {AspNetUserRoles};
+
+          \node[nodo, fill=updsAmber!12] (pedidos) at (0.4,-3.1) {Pedidos};
+          \node[nodo, fill=updsTeal!12] (componentes) at (4.6,-3.1) {Componentes};
+          \node[nodo, fill=updsTeal!12] (combos) at (8.2,-3.1) {Combos};
+          \node[nodo, fill=updsTeal!12] (combocomp) at (11.8,-3.1) {ComboComponentes};
+          \node[nodo, fill=updsAmber!12] (pedidoitems) at (0.4,-4.8) {PedidoItems};
+          \node[nodo, fill=updsAmber!12] (carritos) at (10.8,-4.8) {CarritosAbandonados};
+
+          \node[nodo, fill=updsRed!15] (sucursales) at (0.8,-6.6) {Sucursales};
+          \node[nodo, fill=updsRed!15] (proveedores) at (4.5,-6.6) {Proveedores};
+          \node[nodo, fill=updsRed!15] (products) at (8.2,-6.6) {Products};
+          \node[draw=updsRed, dashed, rounded corners=3pt, fit=(sucursales)(proveedores)(products), inner sep=5pt] {};
+          \node[font=\scriptsize\bfseries, text=updsRed, align=left] at (11.6,-6.6) {3 tablas\\sin FK};
+
+          \draw[fk] (userroles) -- (users);
+          \draw[fk] (userroles.east) -- (roles.south west);
+          \draw[fk] (pedidos.north) -- (users.south west);
+          \draw[fk] (pedidoitems) -- (pedidos);
+          \draw[fk] (combocomp) -- (combos);
+          \draw[fk] (combocomp.south) -- (11.8,-3.95) -- (4.6,-3.95) -- (componentes.south);
+          \draw[fk] (carritos.east) -- (13.4,-4.8) -- (13.4,0.8) -- (3.0,0.8) -- (users.north);
+          \draw[nofk] (pedidoitems.east) -- node[midway, below, font=\scriptsize\bfseries, text=updsRed]{sin FK real} (componentes.south west);
+        \end{tikzpicture}%
+      }
+    \end{column}
+  \end{columns}
+\end{frame}
+
+% ============================================================================
+% DIAPOSITIVA 4: NORMALIZACIÓN 1FN, 2FN Y 3FN
+% ============================================================================
+\begin{frame}{3. Proceso de Normalizaci\'on (1FN $\to$ 2FN $\to$ 3FN)}{Eliminaci\'on de Redundancias y Anomal\'ias}
+  \begin{columns}[T,totalwidth=\textwidth]
+    \begin{column}{0.32\textwidth}
+      \cardBox[updsNavy]{Primera Forma Normal (1FN)}{%
+        \textbf{Anomal\'ia:} \texttt{ItemsJson} almacenado como cadena \texttt{TEXT} plana sin validaci\'on estructural.\\[4pt]
+        \textbf{Soluci\'on:} Migraci\'on a \texttt{JSONB} binario validado con \'indice invertido \texttt{GIN} para consultas nativas \texttt{@>}.
+      }
+    \end{column}
+    \begin{column}{0.32\textwidth}
+      \cardBox[updsBlue]{Segunda Forma Normal (2FN)}{%
+        \textbf{Anomal\'ia:} Atributos descriptivos repetidos en cat\'alogos compuestos.\\[4pt]
+        \textbf{Soluci\'on:} Clave primaria compuesta \texttt{(ComboId, ComponenteId)} en \texttt{ComboComponentes} con dependencia total de \texttt{Cantidad}.
+      }
+    \end{column}
+    \begin{column}{0.32\textwidth}
+      \cardBox[updsTeal]{Tercera Forma Normal (3FN)}{%
+        \textbf{Anomal\'ia:} \texttt{Tipo}/\texttt{Marca} en texto libre y \texttt{FullName} duplicado.\\[4pt]
+        \textbf{Soluci\'on:} Extracci\'on de \texttt{Categorias} y \texttt{Marcas} con FK; eliminaci\'on de \texttt{FullName} y enlace a \texttt{Regiones}/\texttt{Sucursales}.
+      }
+    \end{column}
+  \end{columns}
+
+  \vspace{4mm}
+  \cardBox[updsSlate]{Depuraci\'on Adicional del Modelo}{%
+    Eliminaci\'on definitiva de \texttt{public."Products"} (scaffold legacy en ingl\'es) e incorporaci\'on de \texttt{ProveedorId}, \texttt{StockMinimo} y \texttt{EstadoObsolescencia} en \texttt{catalogo.Componentes}.
+  }
+\end{frame}
+
+% ============================================================================
+% DIAPOSITIVA 5: ARQUITECTURA DESPUÉS (4 ESQUEMAS + PUBLIC)
+% ============================================================================
+\begin{frame}{4. Arquitectura Multiesquema DESPU\'ES}{4 Esquemas de Negocio + \texttt{public} (Identity)}
+  \begin{columns}[c,totalwidth=\textwidth]
+    \begin{column}{0.45\textwidth}
+      {\scriptsize
+      \setlength{\tabcolsep}{3pt}
+      \renewcommand{\arraystretch}{1.18}
+      \begin{tabular}{@{}l l@{}}
+        \toprule
+        \textbf{Esquema} & \textbf{Tablas y Rol} \\
+        \midrule
+        \texttt{catalogo} & \texttt{Categorias}, \texttt{Marcas},\\
+                          & \texttt{Componentes}, \texttt{Combos},\\
+                          & \texttt{ComboComponentes} \\
+        \texttt{ventas}   & \texttt{Pedidos}, \texttt{PedidoItems},\\
+                          & \texttt{CarritosAbandonados} (\texttt{JSONB}) \\
+        \texttt{operaciones} & \texttt{Regiones}, \texttt{Sucursales},\\
+                             & \texttt{Proveedores} \\
+        \texttt{auditoria} & \texttt{AuditoriaComponentes},\\
+                           & \texttt{AuditoriaPedidos},\\
+                           & \texttt{MermasInventario} (ODS 12) \\
+        \texttt{public}   & \texttt{AspNetUsers} + tablas Identity \\
+        \bottomrule
+      \end{tabular}}
+    \end{column}
+    \begin{column}{0.52\textwidth}
+      \centering
+      \resizebox{\linewidth}{!}{%
+        \begin{tikzpicture}[
+          ent/.style={draw=updsNavy, rectangle, rounded corners=3pt, fill=updsTeal!14, minimum width=2.5cm, minimum height=0.65cm, font=\scriptsize\bfseries, align=center},
+          aux/.style={draw=updsBlue, rectangle, rounded corners=3pt, fill=updsBlue!10, minimum width=2.5cm, minimum height=0.65cm, font=\scriptsize, align=center},
+          aud/.style={draw=updsSlate, rectangle, rounded corners=3pt, fill=updsLight, minimum width=2.6cm, minimum height=0.65cm, font=\scriptsize, align=center},
+          fk/.style={-Stealth, thick, updsNavy},
+          trg/.style={-Stealth, thick, dashed, updsMuted}
+        ]
+          \node[aud] (merma) at (-0.4,0) {MermasInventario};
+          \node[aux] (cat) at (3.0,0) {Categorias};
+          \node[aux] (mar) at (7.2,0) {Marcas};
+          \node[aud] (audcomp) at (11.4,0) {AuditoriaComponentes};
+
+          \node[ent] (comp) at (3.0,-2.0) {Componentes};
+          \node[ent] (combos) at (7.2,-2.0) {Combos};
+          \node[ent] (ccomp) at (11.4,-2.0) {ComboComponentes};
+
+          \node[aux] (users) at (-0.4,-4.0) {AspNetUsers};
+          \node[ent] (ped) at (3.0,-4.0) {Pedidos};
+          \node[ent] (pitems) at (7.2,-4.0) {PedidoItems};
+          \node[ent] (carr) at (11.4,-4.0) {CarritosAbandonados};
+
+          \node[aux] (reg) at (-0.4,-6.0) {Regiones};
+          \node[aux] (suc) at (3.0,-6.0) {Sucursales};
+          \node[aud] (audped) at (7.2,-6.0) {AuditoriaPedidos};
+          \node[aux] (prov) at (11.4,-6.0) {Proveedores};
+
+          \draw[fk] (merma.south east) -- (comp.north west);
+          \draw[fk] (comp.north) -- (cat.south);
+          \draw[fk] (comp.north east) -- (mar.south west);
+          \draw[fk] (ccomp.west) -- (combos.east);
+          \draw[fk] (ccomp.south) -- (11.4,-2.85) -- (3.0,-2.85) -- (comp.south);
+          \draw[fk] (pitems.north) -- (combos.south);
+          \draw[fk] (pitems.north west) -- (comp.south east);
+          \draw[fk] (pitems.west) -- (ped.east);
+          \draw[fk] (ped.west) -- (users.east);
+          \draw[fk] (ped.south) -- (suc.north);
+          \draw[fk] (carr.north) -- (11.4,-3.2) -- (-0.4,-3.2) -- (users.north);
+          \draw[fk] (users.south) -- (reg.north);
+          \draw[fk] (suc.west) -- (reg.east);
+          \draw[trg] (audcomp.south west) -- (comp.east);
+          \draw[trg] (audped.north west) -- (ped.south east);
+        \end{tikzpicture}%
+      }
+    \end{column}
+  \end{columns}
+\end{frame}
+
+% ============================================================================
+% DIAPOSITIVA 6: RESTRICCIONES DECLARATIVAS E INTEGRIDAD
+% ============================================================================
+\begin{frame}[fragile]{5. Restricciones Declarativas e Integridad}{64 Restricciones Activas en Esquemas de Negocio}
+  \begin{columns}[c,totalwidth=\textwidth]
+    \begin{column}{0.44\textwidth}
+      {\footnotesize
+      \renewcommand{\arraystretch}{1.15}
+      \begin{tabular}{@{}l r r@{}}
+        \toprule
+        \textbf{Tipo} & \textbf{ANTES} & \textbf{DESPU\'ES} \\
+        \midrule
+        \texttt{PRIMARY KEY} & 17 & 14 (+7 Identity) \\
+        \texttt{FOREIGN KEY} & 11 & 14 (+2 en Users) \\
+        \texttt{UNIQUE}      & \color{updsRed}0 & \textbf{\color{updsTeal}11 (+1 Users)} \\
+        \texttt{CHECK}       & \color{updsRed}0 & \textbf{\color{updsTeal}25} \\
+        \bottomrule
+      \end{tabular}}
+
+      \vspace{3mm}
+      {\footnotesize
+      \begin{itemize}\setlength{\itemsep}{2pt}
+        \item Precios y subtotales estrictamente $> 0$.
+        \item Stocks y umbrales m\'inimos $\geq 0$.
+        \item Estados, m\'etodos de pago y obsolescencia acotados por dominio.
+      \end{itemize}}
+    \end{column}
+    \begin{column}{0.53\textwidth}
+      \cardBox[updsNavy]{Arco Exclusivo en \texttt{ventas.PedidoItems}}{%
+        Reemplaza la referencia polim\'orfica sin FK por dos claves for\'aneas reales mutuamente excluyentes:
+      }
+      \vspace{1mm}
+\begin{lstlisting}[language=SQL]
+CONSTRAINT ck_pi_exclusivo CHECK (
+  ("ComponenteId" IS NOT NULL AND "ComboId" IS NULL)
+  OR
+  ("ComboId" IS NOT NULL AND "ComponenteId" IS NULL)
+),
+FOREIGN KEY ("ComponenteId")
+  REFERENCES catalogo."Componentes"("Id") ON DELETE RESTRICT,
+FOREIGN KEY ("ComboId")
+  REFERENCES catalogo."Combos"("Id") ON DELETE RESTRICT
+\end{lstlisting}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+% ============================================================================
+% DIAPOSITIVA 7: INTELIGENCIA DE NEGOCIOS (Q1-Q5)
+% ============================================================================
+\begin{frame}{6. Inteligencia de Negocios Reales (Q1--Q5)}{Resultados Extra\'idos de Supabase en Bolivianos (Bs.)}
+  \begin{columns}[T,totalwidth=\textwidth]
+    \begin{column}{0.55\textwidth}
+      {\scriptsize\textbf{\color{updsNavy}Q1: Top Componentes Vendidos (Estado Completado/Entregado)}}\\[1.5mm]
+      {\scriptsize
+      \setlength{\tabcolsep}{3.5pt}
+      \renewcommand{\arraystretch}{1.12}
+      \begin{tabular}{@{}l l r r@{}}
+        \toprule
+        \textbf{Componente} & \textbf{Categor\'ia} & \textbf{Unid.} & \textbf{Ingreso (Bs.)} \\
+        \midrule
+        Intel Core Ultra 9 285K & Procesadores & 5 & 32,500.00 \\
+        Samsung 990 Pro 2TB & Almacenamiento & 5 & 8,000.00 \\
+        \textbf{NVIDIA RTX 5080 Ti} & \textbf{Tarjetas Video} & \textbf{4} & \textbf{78,000.00} \\
+        G.SKILL Trident Z5 64GB & Memoria RAM & 2 & 4,800.00 \\
+        Logitech Superlight 2 & Perif\'ericos & 2 & 2,400.00 \\
+        \bottomrule
+      \end{tabular}}
+
+      \vspace{2.5mm}
+      {\scriptsize\textbf{\color{updsNavy}Q3: Rentabilidad de Combos (\texttt{vw\_combos\_rentabilidad})}}\\[1mm]
+      {\scriptsize
+      \setlength{\tabcolsep}{4pt}
+      \begin{tabular}{@{}l r r r@{}}
+        \toprule
+        \textbf{Combo} & \textbf{Venta} & \textbf{Componentes} & \textbf{Ahorro} \\
+        \midrule
+        Gaming PC Ultimate & 36,800 & 38,800 & \textbf{2,000 Bs.} \\
+        Starter Build DDR5 & 14,250 & 15,000 & 750 Bs. \\
+        Setup Gaming Completo & 10,500 & 11,200 & 700 Bs. \\
+        \bottomrule
+      \end{tabular}}
+    \end{column}
+    \begin{column}{0.42\textwidth}
+      \cardBox[updsBlue]{Hallazgos Clave Q1--Q5}{%
+        \begin{itemize}\setlength{\itemsep}{3pt}
+          \item \textbf{Q1/Q2 (Pareto GPU):} La \textit{RTX 5080 Ti} aporta el \textbf{59.9\,\%} del ingreso de componentes sueltos (Bs.\ 78,000).
+          \item \textbf{Q4 (Concentraci\'on):} El cliente principal acumula \textbf{Bs.\ 127,716.00} (\textbf{62.0\,\%} del gasto en 9 pedidos).
+          \item \textbf{Q5 (\texttt{JSONB} \texttt{@>}):} \textbf{0 carritos abandonados} activos tras conversi\'on autom\'atica del carrito (\texttt{Id=1}, Bs.\ 19,500) en venta.
+        \end{itemize}
+      }
+    \end{column}
+  \end{columns}
+\end{frame}
+
+% ============================================================================
+% DIAPOSITIVA 8: INTELIGENCIA DE NEGOCIOS (Q6-Q10)
+% ============================================================================
+\begin{frame}{7. Inteligencia de Negocios Reales (Q6--Q10)}{Stock Cr\'itico, Medios de Pago, Log\'istica y KPIs}
+  \begin{columns}[T,totalwidth=\textwidth]
+    \begin{column}{0.48\textwidth}
+      \cardBox[updsRed]{Q6: Alerta de Stock Cr\'itico}{%
+        \textbf{Lian Li O11 Dynamic EVO}: \textbf{4 unid.} disponibles frente a \texttt{StockMinimo = 5}.\\
+        Proveedor directo: \textit{Cooler Master Latam} (\texttt{cm@latam.com}).
+      }
+
+      \vspace{2.5mm}
+      {\scriptsize\textbf{\color{updsNavy}Q7: M\'etodos de Pago (Funci\'on Ventana)}}\\[1mm]
+      {\scriptsize
+      \renewcommand{\arraystretch}{1.12}
+      \begin{tabular}{@{}l r r r@{}}
+        \toprule
+        \textbf{M\'etodo} & \textbf{Pedidos} & \textbf{Monto (Bs.)} & \textbf{\%} \\
+        \midrule
+        Tarjeta & 6 & 120,756.00 & \textbf{54.55\,\%} \\
+        QR / Billetera & 3 & 29,580.00 & 27.27\,\% \\
+        Efectivo & 2 & 55,564.00 & 18.18\,\% \\
+        \bottomrule
+      \end{tabular}}
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      {\scriptsize\textbf{\color{updsNavy}Q10: Dashboard Ejecutivo Mensual}}\\[1mm]
+      {\scriptsize
+      \renewcommand{\arraystretch}{1.12}
+      \begin{tabular}{@{}l r r r@{}}
+        \toprule
+        \textbf{Mes} & \textbf{Ped.} & \textbf{Facturaci\'on} & \textbf{Ticket Prom.} \\
+        \midrule
+        2026-11 & 4 & 76,212.00 Bs. & 19,053.00 Bs. \\
+        2026-10 & 5 & 93,960.00 Bs. & 18,792.00 Bs. \\
+        2026-09 & 4 & 58,812.00 Bs. & 14,703.00 Bs. \\
+        \bottomrule
+      \end{tabular}}
+
+      \vspace{2.5mm}
+      \cardBox[updsTeal]{Q8 \& Q9: Log\'istica y Ciclo de Vida}{%
+        \begin{itemize}\setlength{\itemsep}{2pt}
+          \item \textbf{Q8 (Entrega):} Cochabamba \textbf{1.83 d\'ias} vs.\ La Paz \textbf{3.00 d\'ias}.
+          \item \textbf{Q9 (Obsolescencia):} \textit{ASUS ROG X670E} marcada \texttt{PorDescontinuar} con \textbf{1 baja} en mermas.
+        \end{itemize}
+      }
+    \end{column}
+  \end{columns}
+\end{frame}
+
+% ============================================================================
+% DIAPOSITIVA 9: CONCURRENCIA Y TRANSACCIONES ACID
+% ============================================================================
+\begin{frame}{8. Concurrencia y Transacciones ACID}{\texttt{ventas.sp\_confirmar\_venta} con Bloqueo Pesimista}
+  \begin{columns}[c,totalwidth=\textwidth]
+    \begin{column}{0.43\textwidth}
+      \centering
+      \resizebox{0.95\linewidth}{!}{%
+        \begin{tikzpicture}[
+          nodo/.style={draw=updsNavy, rectangle, rounded corners=3pt, fill=updsLight, minimum width=3.5cm, minimum height=0.62cm, font=\scriptsize\bfseries, align=center},
+          dec/.style={draw=updsAmber, diamond, fill=updsAmber!12, minimum width=2.8cm, minimum height=0.6cm, font=\scriptsize\bfseries, aspect=2.5, align=center},
+          ok/.style={-Stealth, thick, updsTeal},
+          err/.style={-Stealth, thick, updsRed},
+          norm/.style={-Stealth, thick, updsNavy},
+          node distance=0.55cm
+        ]
+          \node[nodo, fill=updsBlue!15] (ini) {CALL sp\_confirmar\_venta};
+          \node[nodo, below=of ini] (lock) {SELECT ... FOR UPDATE\\(bloqueo exclusivo de fila)};
+          \node[dec, below=of lock] (chk) {Stock suficiente?};
+          \node[nodo, right=1.2cm of chk, fill=updsRed!12, minimum width=2.6cm] (rb) {RAISE EXCEPTION\\ROLLBACK total};
+          \node[nodo, below=of chk] (ins) {INSERT Pedido + Items\\UPDATE Stock};
+          \node[nodo, below=of ins] (upd) {Estado 0 $\to$ 1 + Triggers};
+          \node[nodo, below=of upd, fill=updsTeal!18] (commit) {COMMIT at\'omico};
+
+          \draw[norm] (ini) -- (lock);
+          \draw[norm] (lock) -- (chk);
+          \draw[ok]   (chk) -- node[left, font=\tiny]{S\'i} (ins);
+          \draw[err]  (chk) -- node[above, font=\tiny]{No} (rb);
+          \draw[norm] (ins) -- (upd);
+          \draw[norm] (upd) -- (commit);
+        \end{tikzpicture}%
+      }
+    \end{column}
+    \begin{column}{0.54\textwidth}
+      \cardBox[updsTeal]{Prueba Real 1 --- \texttt{COMMIT} Exitoso}{%
+        Compra de 1 \textit{Samsung 990 Pro 2TB} (Bs.\ 1,600):
+        \begin{itemize}\setlength{\itemsep}{1.5pt}
+          \item Gener\'o \textbf{\texttt{PedidoId = 13}} (\texttt{TPC-TXOK-20261125235437}).
+          \item Total con IVA 16\,\%: \textbf{Bs.\ 1,856.00} \,|\, Comisi\'on: \textbf{Bs.\ 80.00}.
+          \item Stock descontado at\'omicamente: \textbf{52 $\to$ 51}.
+        \end{itemize}
+      }
+
+      \vspace{2.5mm}
+      \cardBox[updsRed]{Prueba Real 2 --- \texttt{ROLLBACK} Controlado}{%
+        Solicitud de \textbf{9,999 unid.} de \textit{NVIDIA RTX 5080 Ti}:
+        \begin{itemize}\setlength{\itemsep}{1.5pt}
+          \item Excepci\'on: \textit{disponible 15, requerido 9999}.
+          \item Stock intacto (\textbf{15 $\to$ 15}) y \textbf{0 pedidos hu\'erfanos} (\texttt{TPC-TXFAIL-9999 = 0}).
+        \end{itemize}
+      }
+    \end{column}
+  \end{columns}
+\end{frame}
+
+% ============================================================================
+% DIAPOSITIVA 10: AUDITORÍA AUTOMÁTICA E INDEXACIÓN
+% ============================================================================
+\begin{frame}{9. Auditor\'ia Inmutable e Indexaci\'on}{Triggers en \texttt{auditoria} y Planes \texttt{EXPLAIN (ANALYZE)}}
+  \begin{columns}[T,totalwidth=\textwidth]
+    \begin{column}{0.49\textwidth}
+      {\scriptsize\textbf{\color{updsNavy}Evidencia Real de Triggers (\texttt{PedidoId = 13})}}\\[1.5mm]
+      {\scriptsize
+      \renewcommand{\arraystretch}{1.18}
+      \begin{tabular}{@{}l c l l@{}}
+        \toprule
+        \textbf{Tabla} & \textbf{Id} & \textbf{Ref.} & \textbf{Cambio Auditado} \\
+        \midrule
+        \texttt{AuditoriaPedidos} & 1 & Ped.\ 13 & Estado: \textbf{0 $\to$ 1} \\
+        \texttt{AuditoriaComponentes} & 16 & Comp.\ 3 & Stock: \textbf{52 $\to$ 51} \\
+        \bottomrule
+      \end{tabular}}
+
+      \vspace{3mm}
+      \cardBox[updsNavy]{Cobertura de Disparadores}{%
+        \begin{itemize}\setlength{\itemsep}{2pt}
+          \item \texttt{tg\_audit\_componentes}: captura \texttt{I/U/D}, stock, precio y obsolescencia.
+          \item \texttt{tg\_audit\_pedidos}: registra toda transici\'on de estado con marca UTC y usuario BD.
+        \end{itemize}
+      }
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      {\scriptsize\textbf{\color{updsNavy}6 \'Indices B-Tree + 1 GIN (\texttt{EXPLAIN ANALYZE})}}\\[1.5mm]
+      {\scriptsize
+      \renewcommand{\arraystretch}{1.18}
+      \begin{tabular}{@{}l l r@{}}
+        \toprule
+        \textbf{Consulta / \'Indice} & \textbf{Operador Plan} & \textbf{Tiempo} \\
+        \midrule
+        \texttt{CategoriaId = 1} (fr\'ia) & \texttt{Index Scan} & 1.355 ms \\
+        \texttt{CategoriaId = 1} (tibia) & \texttt{Index Scan} & \textbf{\color{updsTeal}0.037 ms} \\
+        \texttt{ItemsJson @>} (\texttt{GIN}) & \texttt{Bitmap Index} & \textbf{\color{updsTeal}1.409 ms} \\
+        \bottomrule
+      \end{tabular}}
+
+      \vspace{3mm}
+      \cardBox[updsTeal]{Impacto en Rendimiento}{%
+        Acceso directo por \'indice \texttt{idx\_comp\_categoria} (\textbf{0.037 ms}) e indexaci\'on invertida \texttt{idx\_carritos\_json} sobre documentos \texttt{JSONB}.
+      }
+    \end{column}
+  \end{columns}
+\end{frame}
+
+% ============================================================================
+% DIAPOSITIVA 11: INTEGRACIÓN .NET 10 Y ODS
+% ============================================================================
+\begin{frame}[fragile]{10. Integraci\'on \texttt{.NET 10} y Sostenibilidad (ODS)}{Sincronizaci\'on Backend C\# + Impacto ODS 8 y ODS 12}
+  \begin{columns}[T,totalwidth=\textwidth]
+    \begin{column}{0.51\textwidth}
+      {\scriptsize\textbf{\color{updsNavy}Fluent API + Llamada Transaccional en \texttt{TiendaController}}}
+\begin{lstlisting}[language={[Sharp]C}]
+// ApplicationDbContext.cs (EF Core 10)
+e.ToTable("Componentes", "catalogo", t =>
+  t.HasCheckConstraint("ck_componentes_precio", "\"Precio\" > 0"));
+e.HasIndex(c => c.ItemsJson).HasMethod("gin");
+
+// TiendaController.ProcesarPago()
+await using var cmd = new NpgsqlCommand(
+  "CALL ventas.sp_confirmar_venta(@p_user_id, " +
+  "@p_numero_pedido, @p_items, @p_metodo_pago, " +
+  "@p_sucursal_id, @p_notas, @p_pedido_id)", conn);
+\end{lstlisting}
+      {\scriptsize Captura \texttt{PostgresException} ante \texttt{ROLLBACK} y notifica al cliente sin corromper sesi\'on.}
+    \end{column}
+    \begin{column}{0.46\textwidth}
+      \cardBox[updsBlue]{ODS 8: Crecimiento Econ\'omico PYME}{%
+        Automatizaci\'on de KPIs gerenciales, control multiregional (Cochabamba, La Paz, Santa Cruz) y c\'alculo exacto de comisiones.
+      }
+
+      \vspace{2.5mm}
+      \cardBox[updsTeal]{ODS 12: Consumo Responsable y RAEE}{%
+        \begin{itemize}\setlength{\itemsep}{1.5pt}
+          \item Prevenci\'on de sobreventa y env\'ios fallidos.
+          \item Tabla \texttt{auditoria.MermasInventario} y \texttt{EstadoObsolescencia}: trazabilidad hacia \texttt{Reacondicionado} y \texttt{ReciclajeCertificado} RAEE.
+        \end{itemize}
+      }
+    \end{column}
+  \end{columns}
+\end{frame}
+
+% ============================================================================
+% DIAPOSITIVA 12: CONCLUSIONES Y DEMO EN VIVO
+% ============================================================================
+\begin{frame}{11. Conclusiones y Demostraci\'on en Vivo}{Cierre de Defensa --- TechParts ERP}
+  \begin{columns}[T,totalwidth=\textwidth]
+    \begin{column}{0.48\textwidth}
+      \cardBox[updsNavy]{1. Integridad en el Motor}{%
+        Paso de \textbf{0} a \textbf{36 restricciones \texttt{CHECK}/\texttt{UNIQUE}} y arco exclusivo en 3FN sobre 4 esquemas especializados + \texttt{public}.
+      }
+      \vspace{2.5mm}
+      \cardBox[updsBlue]{2. Concurrencia Garantizada}{%
+        \texttt{sp\_confirmar\_venta} con \texttt{SELECT ... FOR UPDATE} erradica condiciones de carrera y sobreventa de stock.
+      }
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \cardBox[updsTeal]{3. Auditor\'ia y Velocidad}{%
+        Trazabilidad inmutable mediante triggers y consultas de cat\'alogo en \textbf{0.037 ms} con \'indices B-Tree y GIN.
+      }
+      \vspace{2.5mm}
+      \cardBox[updsSlate]{4. Despliegue Productivo Real}{%
+        Base de datos activa en \textbf{Supabase} integrada con ASP.NET Core \texttt{.NET 10} desplegado en \textbf{Render}.
+      }
+    \end{column}
+  \end{columns}
+
+  \vspace{3.5mm}
+  \begin{tikzpicture}
+    \node[fill=updsNavy, rounded corners=4pt, inner sep=6pt,
+          text width=\dimexpr\linewidth-12pt\relax, align=center] {%
+      {\small\bfseries\color{white}DEMOSTRACI\'ON EN VIVO}\\[1pt]
+      {\scriptsize\color{white!85}Verificaci\'on en Supabase SQL Editor (\texttt{catalogo}, \texttt{ventas}, \texttt{auditoria}) y flujo de compra real en TechParts ERP (Render)}%
+    };
+  \end{tikzpicture}
+\end{frame}
+
+\end{document}
