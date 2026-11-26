@@ -76,7 +76,7 @@
         <h2>@Model.Nombre</h2>
         <p class="form-subtitle">Modifica el combo — ID #@Model.Id</p>
 
-        <form asp-action="Edit" method="post">
+        <form asp-action="Edit" method="post" enctype="multipart/form-data">
             <input type="hidden" asp-for="Id" />
             <input type="hidden" asp-for="CreadoEn" />
             <div asp-validation-summary="ModelOnly" class="form-error" style="margin-bottom:1rem;"></div>
@@ -103,7 +103,12 @@
                 </div>
             </div>
             <div class="form-group">
-                <label asp-for="ImageUrl" class="form-label">URL de imagen</label>
+                <label class="form-label">📤 Subir nueva foto desde tu dispositivo (reemplaza la imagen actual)</label>
+                <input type="file" name="ImagenArchivo" id="imgFileInput" accept="image/png,image/jpeg,image/webp,image/gif" class="form-control-tp" />
+                <span asp-validation-for="ImageUrl" class="form-error"></span>
+            </div>
+            <div class="form-group">
+                <label asp-for="ImageUrl" class="form-label">O mantener / pegar URL de imagen</label>
                 <input asp-for="ImageUrl" class="form-control-tp" id="imgUrlInput" />
                 @if (!string.IsNullOrEmpty(Model.ImageUrl))
                 {
@@ -155,9 +160,19 @@
 @section Scripts {
     <partial name="_ValidationScriptsPartial" />
     <script>
+        const fileInput = document.getElementById('imgFileInput');
         const urlInput = document.getElementById('imgUrlInput');
         const preview = document.getElementById('imgPreview');
+        fileInput?.addEventListener('change', () => {
+            const file = fileInput.files?.[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = e => { preview.src = e.target.result; preview.style.display = 'block'; };
+                reader.readAsDataURL(file);
+            }
+        });
         urlInput?.addEventListener('input', () => {
+            if (fileInput?.files?.length) return;
             const url = urlInput.value.trim();
             if (url) { preview.src = url; preview.style.display = 'block'; preview.onerror = () => preview.style.display = 'none'; }
             else { preview.style.display = 'none'; }

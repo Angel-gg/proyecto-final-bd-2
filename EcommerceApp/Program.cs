@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using EcommerceApp.Data;
 using EcommerceApp.Models;
+using EcommerceApp.Services;
 
 // Compatibilidad de DateTime con PostgreSQL en Npgsql 6+
 AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
@@ -45,6 +46,7 @@ builder.Services.AddSession(options =>
     options.Cookie.IsEssential = true;
 });
 
+builder.Services.AddHttpClient<ISupabaseStorageService, SupabaseStorageService>();
 builder.Services.AddControllersWithViews();
 
 var app = builder.Build();
@@ -99,6 +101,14 @@ try
     else
     {
         Console.WriteLine("[BD] Conexión a Supabase verificada correctamente.");
+
+        await db.Database.ExecuteSqlRawAsync(@"
+            CREATE TABLE IF NOT EXISTS catalogo.""ImagenesSubidas"" (
+                ""Id"" VARCHAR(80) PRIMARY KEY,
+                ""ContentType"" VARCHAR(60) NOT NULL,
+                ""Datos"" BYTEA NOT NULL,
+                ""CreadoEn"" TIMESTAMPTZ NOT NULL DEFAULT NOW()
+            );");
 
         var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole>>();
         var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();

@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using EcommerceApp.Data;
 using EcommerceApp.Models;
+using EcommerceApp.Services;
 
 namespace EcommerceApp.Controllers
 {
@@ -10,7 +11,7 @@ namespace EcommerceApp.Controllers
     /// CRUD de Componentes de hardware normalizado en 3FN — acceso restringido a roles de gestión.
     /// </summary>
     [Authorize(Roles = "GerenteGeneral,GerenteSucursal,Vendedor,Comercial,Admin")]
-    public class ComponentesController(ApplicationDbContext db) : Controller
+    public class ComponentesController(ApplicationDbContext db, ISupabaseStorageService storage) : Controller
     {
         private async Task CargarCatalogosAsync()
         {
@@ -78,12 +79,24 @@ namespace EcommerceApp.Controllers
         // POST /Componentes/Create
         [HttpPost, ValidateAntiForgeryToken]
         [Authorize(Roles = "GerenteGeneral,GerenteSucursal,Comercial,Admin")]
-        public async Task<IActionResult> Create(Componente componente)
+        public async Task<IActionResult> Create(Componente componente, IFormFile? ImagenArchivo)
         {
             ModelState.Remove("Categoria");
             ModelState.Remove("Marca");
             ModelState.Remove("Proveedor");
             ModelState.Remove("ComboComponentes");
+
+            if (ImagenArchivo != null && ImagenArchivo.Length > 0)
+            {
+                try
+                {
+                    componente.ImageUrl = await storage.SubirImagenAsync(ImagenArchivo, "componentes");
+                }
+                catch (InvalidOperationException ex)
+                {
+                    ModelState.AddModelError("ImageUrl", ex.Message);
+                }
+            }
 
             if (!ModelState.IsValid)
             {
@@ -111,7 +124,7 @@ namespace EcommerceApp.Controllers
         // POST /Componentes/Edit/5
         [HttpPost, ValidateAntiForgeryToken]
         [Authorize(Roles = "GerenteGeneral,GerenteSucursal,Comercial,Admin")]
-        public async Task<IActionResult> Edit(int id, Componente componente)
+        public async Task<IActionResult> Edit(int id, Componente componente, IFormFile? ImagenArchivo)
         {
             if (id != componente.Id) return NotFound();
 
@@ -119,6 +132,18 @@ namespace EcommerceApp.Controllers
             ModelState.Remove("Marca");
             ModelState.Remove("Proveedor");
             ModelState.Remove("ComboComponentes");
+
+            if (ImagenArchivo != null && ImagenArchivo.Length > 0)
+            {
+                try
+                {
+                    componente.ImageUrl = await storage.SubirImagenAsync(ImagenArchivo, "componentes");
+                }
+                catch (InvalidOperationException ex)
+                {
+                    ModelState.AddModelError("ImageUrl", ex.Message);
+                }
+            }
 
             if (!ModelState.IsValid)
             {

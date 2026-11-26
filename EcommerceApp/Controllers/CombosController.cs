@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using EcommerceApp.Data;
 using EcommerceApp.Models;
+using EcommerceApp.Services;
 
 namespace EcommerceApp.Controllers
 {
@@ -10,7 +11,7 @@ namespace EcommerceApp.Controllers
     /// CRUD de Combos — paquetes de componentes con precio especial.
     /// </summary>
     [Authorize(Roles = "GerenteGeneral,GerenteSucursal,Comercial,Admin")]
-    public class CombosController(ApplicationDbContext db) : Controller
+    public class CombosController(ApplicationDbContext db, ISupabaseStorageService storage) : Controller
     {
         private async Task CargarComponentesAsync()
         {
@@ -58,9 +59,21 @@ namespace EcommerceApp.Controllers
 
         // POST /Combos/Create
         [HttpPost, ValidateAntiForgeryToken]
-        public async Task<IActionResult> Create(Combo combo, int[] ComponenteIds, int[] Cantidades)
+        public async Task<IActionResult> Create(Combo combo, int[] ComponenteIds, int[] Cantidades, IFormFile? ImagenArchivo)
         {
             ModelState.Remove("ComboComponentes");
+
+            if (ImagenArchivo != null && ImagenArchivo.Length > 0)
+            {
+                try
+                {
+                    combo.ImageUrl = await storage.SubirImagenAsync(ImagenArchivo, "combos");
+                }
+                catch (InvalidOperationException ex)
+                {
+                    ModelState.AddModelError("ImageUrl", ex.Message);
+                }
+            }
 
             if (!ModelState.IsValid)
             {
@@ -101,10 +114,22 @@ namespace EcommerceApp.Controllers
 
         // POST /Combos/Edit/5
         [HttpPost, ValidateAntiForgeryToken]
-        public async Task<IActionResult> Edit(int id, Combo combo, int[] ComponenteIds, int[] Cantidades)
+        public async Task<IActionResult> Edit(int id, Combo combo, int[] ComponenteIds, int[] Cantidades, IFormFile? ImagenArchivo)
         {
             if (id != combo.Id) return NotFound();
             ModelState.Remove("ComboComponentes");
+
+            if (ImagenArchivo != null && ImagenArchivo.Length > 0)
+            {
+                try
+                {
+                    combo.ImageUrl = await storage.SubirImagenAsync(ImagenArchivo, "combos");
+                }
+                catch (InvalidOperationException ex)
+                {
+                    ModelState.AddModelError("ImageUrl", ex.Message);
+                }
+            }
 
             if (!ModelState.IsValid)
             {
