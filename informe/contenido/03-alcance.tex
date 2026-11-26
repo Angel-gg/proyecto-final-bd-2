@@ -9,10 +9,10 @@
 El proyecto opera sobre el siguiente stack tecnológico:
 
 \begin{itemize}
-  \item \textbf{Motor de base de datos:} PostgreSQL 15 hospedado en Supabase (región \textit{us-west-2}, pool de conexiones PgBouncer en modo \textit{session}).
-  \item \textbf{ORM:} Entity Framework Core 10 con proveedor Npgsql 9 para .NET 10.
-  \item \textbf{Aplicación web:} ASP.NET Core MVC 10 con ASP.NET Identity para autenticación y autorización basada en roles.
-  \item \textbf{Lenguaje del servidor:} C\# 13.
+  \item \textbf{Motor de base de datos:} PostgreSQL hospedado en Supabase (región \textit{us-west-2}, pool de conexiones en modo \textit{session}).
+  \item \textbf{ORM:} Entity Framework Core 10 con proveedor Npgsql para .NET 10.
+  \item \textbf{Aplicación web:} ASP.NET Core MVC 10 con ASP.NET Identity para autenticación y autorización basada en roles, desplegada en Render.
+  \item \textbf{Lenguaje del servidor:} C\#.
   \item \textbf{Control de versiones:} Git / GitHub (\texttt{proyecto-final-bd-2}).
 \end{itemize}
 
@@ -21,22 +21,24 @@ El proyecto opera sobre el siguiente stack tecnológico:
 El alcance del rediseño de base de datos comprende:
 
 \begin{enumerate}
-  \item Separación del esquema monolítico \texttt{public} en cinco esquemas especializados: \texttt{catalogo}, \texttt{ventas}, \texttt{operaciones}, \texttt{seguridad} y \texttt{auditoria}.
+  \item Separación del esquema monolítico \texttt{public} en cuatro esquemas de negocio especializados (\texttt{catalogo}, \texttt{ventas}, \texttt{operaciones} y \texttt{auditoria}), manteniendo las tablas de ASP.NET Identity en \texttt{public} para no romper la autenticación existente.
   \item Normalización de las tablas de negocio existentes hasta la 3FN.
-  \item Creación de tablas nuevas: \texttt{Categorias}, \texttt{Marcas}, \texttt{Regiones}, \texttt{AuditoriaPedidos}, \texttt{AuditoriaComponentes}.
-  \item Adición de columnas: \texttt{ItemsJson} migrado de \texttt{text} a \texttt{jsonb} en \texttt{CarritosAbandonados}.
+  \item Creación de tablas nuevas: \texttt{Categorias}, \texttt{Marcas}, \texttt{Regiones}, \texttt{AuditoriaPedidos}, \texttt{AuditoriaComponentes} y \texttt{MermasInventario}.
+  \item Migración de \texttt{ItemsJson} de \texttt{text} a \texttt{jsonb} en \texttt{CarritosAbandonados}, con índice GIN.
   \item Definición de restricciones \texttt{CHECK} y \texttt{UNIQUE} en todas las tablas de negocio.
-  \item Script SQL completo (\texttt{anexos/script\_bd2\_completo.sql}) con DDL, DML y objetos avanzados.
-  \item Integración de la nueva estructura en EF Core mediante Fluent API (documentada en este informe, sin modificar el código fuente durante la elaboración del mismo).
+  \item Script SQL completo (\texttt{anexos/script\_bd2\_completo.sql}) con DDL, DML y objetos avanzados, y script auxiliar de consultas y pruebas (\texttt{anexos/consultas\_y\_pruebas\_bd2.sql}).
+  \item Integración de la nueva estructura en ASP.NET Core MVC mediante Fluent API de Entity Framework Core y llamada al procedimiento \texttt{ventas.sp\_confirmar\_venta} desde el flujo de pago.
 \end{enumerate}
 
 \subsection{Límites}
 
+\textbf{Estado de implementación.} La arquitectura multiesquema fue desplegada en Supabase mediante el script SQL del Anexo A y se encuentra conectada a la aplicación ASP.NET Core MVC (.NET 10), la cual opera en producción en Render. Las consultas y pruebas transaccionales presentadas en el Capítulo III corresponden a resultados reales obtenidos sobre dicha instancia.
+
 Los siguientes aspectos quedan fuera del alcance del presente trabajo:
 
 \begin{itemize}
-  \item Migración efectiva de la base de datos de Supabase en producción (el script es ejecutable pero no se aplicó al entorno productivo durante la elaboración del informe).
-  \item Rediseño de la interfaz de usuario o de la lógica de negocio en C\#.
+  \item Rediseño de la interfaz de usuario, más allá de las adaptaciones necesarias para trabajar con categorías, marcas y el flujo de pago transaccional.
   \item Configuración de alta disponibilidad, replicación o particionamiento de tablas.
   \item Implementación de Row Level Security (RLS) de Supabase (se menciona como recomendación futura).
+  \item Pruebas de carga y de concurrencia a gran escala; las mediciones de rendimiento se limitan al volumen de datos de demostración.
 \end{itemize}

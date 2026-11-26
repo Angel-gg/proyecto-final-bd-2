@@ -1,0 +1,162 @@
+% ============================================================================
+%  04-07: INTEGRACIÓN CON LA APLICACIÓN ASP.NET CORE (.NET 10)
+% ============================================================================
+
+\section{Integraci\'on con el backend ASP.NET Core (.NET 10)}
+
+\subsection{Mapeo multiesquema y restricciones en \texttt{ApplicationDbContext}}
+
+Para sincronizar al 100\,\% el modelo de dominio C\# con la base de datos desplegada en Supabase, se refactoriz\'o \texttt{ApplicationDbContext} utilizando Fluent API de Entity Framework Core 10 y el proveedor \texttt{Npgsql}.
+Las tablas de ASP.NET Core Identity permanecen en \texttt{public} (enlazando \texttt{ApplicationUser} con \texttt{Sucursal} y \texttt{Region}), mientras que las catorce entidades de negocio y auditor\'ia se mapean expl\'icitamente a los esquemas \texttt{catalogo}, \texttt{ventas}, \texttt{operaciones} y \texttt{auditoria}, incluyendo la entidad \texttt{MermaInventario} para el control de obsolescencia (ODS~12).
+
+\begin{lstlisting}[language={[Sharp]C}, caption={Extracto real de ApplicationDbContext.cs con mapeo multiesquema y restricciones}, label=lst:efcore]
+public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options)
+    : IdentityDbContext<ApplicationUser>(options)
+{
+    // -- Esquema catalogo (3FN) --
+    public DbSet<Categoria> Categorias { get; set; }
+    public DbSet<Marca> Marcas { get; set; }
+    public DbSet<Componente> Componentes { get; set; }
+    public DbSet<Combo> Combos { get; set; }
+    public DbSet<ComboComponente> ComboComponentes { get; set; }
+
+    // -- Esquema ventas --
+    public DbSet<Pedido> Pedidos { get; set; }
+    public DbSet<PedidoItem> PedidoItems { get; set; }
+    public DbSet<CarritoAbandonado> CarritosAbandonados { get; set; }
+
+    // -- Esquema operaciones --
+    public DbSet<Region> Regiones { get; set; }
+    public DbSet<Sucursal> Sucursales { get; set; }
+    public DbSet<Proveedor> Proveedores { get; set; }
+
+    // -- Esquema auditoria (incluye ODS 12) --
+    public DbSet<AuditoriaComponente> AuditoriaComponentes { get; set; }
+    public DbSet<AuditoriaPedido> AuditoriaPedidos { get; set; }
+    public DbSet<MermaInventario> MermasInventario { get; set; }
+
+    protected override void OnModelCreating(ModelBuilder modelBuilder)
+    {
+        base.OnModelCreating(modelBuilder);
+
+        modelBuilder.Entity<Componente>(e =>
+        {
+            e.ToTable("Componentes", "catalogo", t =>
+            {
+                t.HasCheckConstraint("ck_componentes_precio", "\"Precio\" > 0");
+                t.HasCheckConstraint("ck_componentes_stock", "\"Stock\" >= 0");
+                t.HasCheckConstraint("ck_componentes_min", "\"StockMinimo\" >= 0");
+                t.HasCheckConstraint("ck_componentes_obsol",
+                    "\"EstadoObsolescencia\" IN ('Vigente', 'PorDescontinuar', 'Obsoleto', 'Merma')");
+            });
+            e.HasIndex(c => c.CategoriaId).HasDatabaseName("idx_comp_categoria");
+            e.HasIndex(c => c.MarcaId).HasDatabaseName("idx_comp_marca");
+            e.HasIndex(c => c.Precio).HasDatabaseName("idx_comp_precio");
+        });
+
+        modelBuilder.Entity<PedidoItem>(e =>
+        {
+            e.ToTable("PedidoItems", "ventas", t =>
+            {
+                t.HasCheckConstraint("ck_pi_exclusivo",
+                    "(\"ComponenteId\" IS NOT NULL AND \"ComboId\" IS NULL) OR " +
+                    "(\"ComboId\" IS NOT NULL AND \"ComponenteId\" IS NULL)");
+            });
+        });
+
+        modelBuilder.Entity<CarritoAbandonado>(e =>
+        {
+            e.ToTable("CarritosAbandonados", "ventas");
+            e.Property(c => c.ItemsJson).HasColumnType("jsonb");
+            e.HasIndex(c => c.ItemsJson).HasMethod("gin").HasDatabaseName("idx_carritos_json");
+        });
+
+        modelBuilder.Entity<MermaInventario>(e =>
+        {
+            e.ToTable("MermasInventario", "auditoria", t =>
+            {
+                t.HasCheckConstraint("ck_merma_cant", "\"Cantidad\" > 0");
+                t.HasCheckConstraint("ck_merma_motivo",
+                    "\"Motivo\" IN ('Obsolescencia', 'DanoFisico', 'Garantia', 'ReciclajeRAEE', 'Otro')");
+                t.HasCheckConstraint("ck_merma_disp",
+                    "\"DisposicionFinal\" IN ('ReciclajeCertificado', 'Reacondicionado', 'Donacion', 'BajaDefinitiva')");
+            });
+        });
+    }
+}
+\end{lstlisting}
+
+\subsection{Invocaci\'on de \texttt{ventas.sp\_confirmar\_venta} en \texttt{TiendaController}}
+
+En lugar de insertar pedidos y descontar stock desde memoria sin bloqueo de filas, el m\'etodo \texttt{ProcesarPago} de \texttt{TiendaController} serializa el carrito a \texttt{JSONB} e invoca directamente \texttt{CALL ventas.sp\_confirmar\_venta} mediante \texttt{NpgsqlCommand}.
+Si PostgreSQL detecta falta de stock y ejecuta \texttt{ROLLBACK}, la excepci\'on \texttt{PostgresException} es capturada por el controlador y presentada de forma clara al cliente en la vista de \textit{checkout}.
+
+\begin{lstlisting}[language={[Sharp]C}, caption={Invocacion real de CALL ventas.sp\_confirmar\_venta en TiendaController.cs}, label=lst:tienda-sp]
+[HttpPost, Authorize]
+[ValidateAntiForgeryToken]
+public async Task<IActionResult> ProcesarPago(MetodoPago metodoPago, string? notas)
+{
+    var carrito = ObtenerCarrito();
+    if (!carrito.Items.Any()) return RedirectToAction(nameof(Carrito));
+
+    var user = await userManager.GetUserAsync(User);
+    if (user == null) return Challenge();
+
+    var fechaHoy   = DateTime.UtcNow;
+    var numPedido  = $"TPC-{fechaHoy:yyyyMMdd-HHmmss}-{Random.Shared.Next(100, 999)}";
+    var sucursalId = user.SucursalId ??
+        await db.Sucursales.Where(s => s.Activa).Select(s => (int?)s.Id).FirstOrDefaultAsync();
+
+    var itemsJson = JsonSerializer.Serialize(carrito.Items.Select(i => new
+    {
+        tipo = i.Tipo,
+        id = i.Id,
+        cantidad = i.Cantidad
+    }));
+
+    try
+    {
+        var conn = (NpgsqlConnection)db.Database.GetDbConnection();
+        bool debeCerrar = conn.State != ConnectionState.Open;
+        if (debeCerrar) await conn.OpenAsync();
+
+        int pedidoId;
+        try
+        {
+            await using var cmd = new NpgsqlCommand(
+                "CALL ventas.sp_confirmar_venta(@p_user_id, @p_numero_pedido, @p_items, " +
+                "@p_metodo_pago, @p_sucursal_id, @p_notas, @p_pedido_id)", conn);
+
+            cmd.Parameters.Add(new NpgsqlParameter("p_user_id", NpgsqlDbType.Text) { Value = user.Id });
+            cmd.Parameters.Add(new NpgsqlParameter("p_numero_pedido", NpgsqlDbType.Varchar) { Value = numPedido });
+            cmd.Parameters.Add(new NpgsqlParameter("p_items", NpgsqlDbType.Jsonb) { Value = itemsJson });
+            cmd.Parameters.Add(new NpgsqlParameter("p_metodo_pago", NpgsqlDbType.Smallint) { Value = (short)metodoPago });
+            cmd.Parameters.Add(new NpgsqlParameter("p_sucursal_id", NpgsqlDbType.Integer) { Value = (object?)sucursalId ?? DBNull.Value });
+            cmd.Parameters.Add(new NpgsqlParameter("p_notas", NpgsqlDbType.Text) { Value = (object?)notas ?? DBNull.Value });
+
+            var outPedidoId = new NpgsqlParameter("p_pedido_id", NpgsqlDbType.Integer)
+            {
+                Direction = ParameterDirection.InputOutput,
+                Value = DBNull.Value
+            };
+            cmd.Parameters.Add(outPedidoId);
+
+            await cmd.ExecuteNonQueryAsync();
+            pedidoId = Convert.ToInt32(outPedidoId.Value);
+        }
+        finally
+        {
+            if (debeCerrar) await conn.CloseAsync();
+        }
+
+        HttpContext.Session.Remove(CarritoKey);
+        TempData["Exito"] = $"Compra completada con integridad transaccional. Pedido {numPedido}";
+        return RedirectToAction(nameof(Factura), new { id = pedidoId });
+    }
+    catch (PostgresException pgEx)
+    {
+        TempData["Error"] = $"No se pudo confirmar la compra (ROLLBACK): {pgEx.MessageText}";
+        return RedirectToAction(nameof(Checkout));
+    }
+}
+\end{lstlisting}

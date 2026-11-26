@@ -1,235 +1,302 @@
 % ============================================================================
-%  04-04: INTELIGENCIA DE NEGOCIOS — 10 CONSULTAS
+%  04-04: INTELIGENCIA DE NEGOCIOS — 10 CONSULTAS CON RESULTADOS REALES
 % ============================================================================
 
 \section{Consultas de inteligencia de negocios}
 
-Las siguientes diez consultas responden a requerimientos analíticos reales del sistema TechParts ERP.
-Cada consulta incluye el requerimiento de negocio, el código SQL y la interpretación de resultados.
+Las siguientes diez consultas responden a requerimientos analíticos del sistema TechParts ERP.
+El código SQL se incluye tal como se encuentra en el archivo \texttt{anexos/consultas\_y\_pruebas\_bd2.sql} y los resultados tabulares corresponden a la salida real obtenida al ejecutarlas sobre la instancia de Supabase tras cargar los datos de demostración (13 pedidos).
+Todos los importes se expresan en bolivianos (Bs.).
 
 \subsection{Consulta 1: Productos más vendidos por unidades}
 
-\textbf{Requerimiento:} Identificar los diez componentes con mayor volumen de ventas para priorizar el reabastecimiento de inventario.
+\textbf{Requerimiento:} Identificar los componentes con mayor volumen de ventas (pedidos en estado Completado o Entregado) para priorizar el reabastecimiento.
 
-\begin{lstlisting}[language=SQL, caption={Top 10 componentes por unidades vendidas}, label=lst:q1]
-SELECT
-  c."Nombre"               AS producto,
-  cat."Nombre"             AS categoria,
-  SUM(pi."Cantidad")       AS unidades_vendidas,
-  SUM(pi."Cantidad" * pi."PrecioUnitario") AS ingreso_total
-FROM ventas."PedidoItems" pi
-JOIN catalogo."Componentes"  c   ON pi."ComponenteId" = c."Id"
-JOIN catalogo."Categorias"   cat ON c."CategoriaId"   = cat."Id"
-JOIN ventas."Pedidos"        p   ON pi."PedidoId"     = p."Id"
-WHERE p."Estado" = 2  -- Estado: Entregado
-GROUP BY c."Id", c."Nombre", cat."Nombre"
-ORDER BY unidades_vendidas DESC
-LIMIT 10;
-\end{lstlisting}
+\lstinputlisting[language=SQL, firstline=154, lastline=168, caption={Q1: top de componentes por unidades e ingresos}, label=lst:q1]{anexos/consultas_y_pruebas_bd2.sql}
 
-\textbf{Interpretación:} La GPU RTX 5080 Ti y el mouse Logitech G Pro lideran en unidades vendidas; sin embargo, el ingreso monetario mayor proviene de las GPUs por su precio unitario elevado.
-Esta dualidad requiere estrategias de inventario diferenciadas: alto volumen para periféricos, alto valor para GPUs.
+\begin{center}
+\captionof{table}{Resultado de Q1: componentes más vendidos}
+\label{tab:q1}
+\begin{tablaAPA}
+\begin{tabular}{L{4.6cm} L{3.2cm} L{1.9cm} R{1.5cm} R{2.7cm}}
+\toprule
+\textbf{Producto} & \textbf{Categoría} & \textbf{Marca} & \textbf{Unid.} & \textbf{Ingreso (Bs.)} \\
+\midrule
+Intel Core Ultra 9 285K & Procesadores & Intel & 5 & 32500.00 \\
+Samsung 990 Pro 2TB NVMe & Almacenamiento & Samsung & 5 & 8000.00 \\
+NVIDIA RTX 5080 Ti & Tarjetas de Video & NVIDIA & 4 & 78000.00 \\
+G.SKILL Trident Z5 RGB 64GB DDR5 & Memoria RAM & G.Skill & 2 & 4800.00 \\
+Logitech G Pro X Superlight 2 & Perifericos & Logitech & 2 & 2400.00 \\
+ASUS ROG Maximus Z890 Hero & Tarjetas Madre & ASUS & 1 & 4500.00 \\
+\bottomrule
+\end{tabular}
+\end{tablaAPA}
+\fuenteAPA{Salida de la consulta Q1 en Supabase (PostgreSQL).}
+\end{center}
+
+\textbf{Interpretación:} El procesador Intel Core Ultra 9 285K y el SSD Samsung 990 Pro lideran en unidades (5 cada uno), pero la RTX 5080 Ti, con solo 4 unidades, aporta Bs.\ 78000.00, es decir el 59.9\,\% de los Bs.\ 130200.00 que suman las seis filas.
+La estrategia de inventario debe diferenciar entre productos de rotación alta y bajo valor unitario (almacenamiento, memoria) y productos de alto valor unitario (GPU), cuyo capital inmovilizado es mayor.
 
 \subsection{Consulta 2: Ingresos mensuales por categoría}
 
-\textbf{Requerimiento:} Visualizar la evolución mensual de ingresos desglosada por categoría de producto para detectar tendencias estacionales.
+\textbf{Requerimiento:} Visualizar la evolución mensual de ingresos por categoría de componente.
 
-\begin{lstlisting}[language=SQL, caption={Ingresos mensuales por categoría}, label=lst:q2]
-SELECT
-  DATE_TRUNC('month', p."FechaPedido") AS mes,
-  cat."Nombre"                         AS categoria,
-  SUM(pi."Cantidad" * pi."PrecioUnitario") AS ingreso_mes
-FROM ventas."Pedidos"    p
-JOIN ventas."PedidoItems" pi  ON pi."PedidoId"    = p."Id"
-JOIN catalogo."Componentes" c ON pi."ComponenteId" = c."Id"
-JOIN catalogo."Categorias" cat ON c."CategoriaId"  = cat."Id"
-WHERE p."Estado" IN (1,2)
-GROUP BY mes, cat."Nombre"
-ORDER BY mes DESC, ingreso_mes DESC;
-\end{lstlisting}
+\lstinputlisting[language=SQL, firstline=171, lastline=182, caption={Q2: ingresos mensuales por categoría}, label=lst:q2]{anexos/consultas_y_pruebas_bd2.sql}
 
-\textbf{Interpretación:} Las categorías de GPU y procesadores muestran picos en noviembre (Black Friday) y enero (inicio de año lectivo).
-Los periféricos tienen demanda más estable a lo largo del año, lo que permite planificar compras a proveedores con anticipación.
+\begin{center}
+\captionof{table}{Resultado de Q2: ingresos mensuales por categoría}
+\label{tab:q2}
+\begin{tablaAPA}
+\begin{tabular}{L{2.0cm} L{4.2cm} R{1.8cm} R{3.0cm}}
+\toprule
+\textbf{Mes} & \textbf{Categoría} & \textbf{Unidades} & \textbf{Ingreso (Bs.)} \\
+\midrule
+2026-11 & Tarjetas de Video & 2 & 39000.00 \\
+2026-11 & Procesadores & 2 & 13000.00 \\
+2026-11 & Almacenamiento & 2 & 3200.00 \\
+2026-10 & Tarjetas de Video & 1 & 19500.00 \\
+2026-10 & Memoria RAM & 1 & 2400.00 \\
+2026-10 & Perifericos & 2 & 2400.00 \\
+2026-09 & Procesadores & 3 & 19500.00 \\
+2026-09 & Tarjetas de Video & 1 & 19500.00 \\
+2026-09 & Almacenamiento & 3 & 4800.00 \\
+2026-09 & Tarjetas Madre & 1 & 4500.00 \\
+2026-09 & Memoria RAM & 1 & 2400.00 \\
+\bottomrule
+\end{tabular}
+\end{tablaAPA}
+\fuenteAPA{Salida de la consulta Q2 en Supabase (PostgreSQL).}
+\end{center}
+
+\textbf{Interpretación:} Las tarjetas de video son la categoría de mayor ingreso en los tres meses (Bs.\ 19500.00 en septiembre y octubre y Bs.\ 39000.00 en noviembre).
+Los totales por mes de Q2 (septiembre Bs.\ 50700.00, octubre Bs.\ 24300.00, noviembre Bs.\ 55200.00) solo consideran líneas con \texttt{ComponenteId}; la vista \texttt{ventas.vw\_ventas\_mensuales} reporta subtotales mayores en octubre (Bs.\ 61100.00) y noviembre (Bs.\ 65700.00), y la diferencia (Bs.\ 36800.00 y Bs.\ 10500.00) coincide con el precio de los combos \textit{Gaming PC Ultimate} y \textit{Setup Gaming Completo}, vendidos en esos meses.
 
 \subsection{Consulta 3: Rentabilidad de combos}
 
-\textbf{Requerimiento:} Calcular el margen de descuento efectivo de cada combo respecto al precio de sus componentes individuales.
+\textbf{Requerimiento:} Calcular el ahorro efectivo de cada combo respecto del precio de sus componentes individuales.
 
-\begin{lstlisting}[language=SQL, caption={Rentabilidad y ahorro efectivo por combo}, label=lst:q3]
-SELECT
-  co."Nombre"                                   AS combo,
-  co."PrecioBase"                               AS precio_combo,
-  SUM(c."Precio" * cc."Cantidad")               AS precio_componentes,
-  co."Descuento"                                AS descuento_pct,
-  SUM(c."Precio" * cc."Cantidad") - co."PrecioBase" AS ahorro_cliente
-FROM catalogo."Combos"           co
-JOIN catalogo."ComboComponentes" cc ON cc."ComboId"      = co."Id"
-JOIN catalogo."Componentes"      c  ON cc."ComponenteId" = c."Id"
-GROUP BY co."Id", co."Nombre", co."PrecioBase", co."Descuento"
-ORDER BY ahorro_cliente DESC;
-\end{lstlisting}
+\lstinputlisting[language=SQL, firstline=185, lastline=185, caption={Q3: rentabilidad de combos (vista analítica)}, label=lst:q3]{anexos/consultas_y_pruebas_bd2.sql}
 
-\textbf{Interpretación:} El combo ``PC Gamer Extreme'' ofrece el mayor ahorro absoluto (\$320 USD) respecto a comprar los componentes por separado, siendo el más atractivo para clientes con presupuesto definido.
+\begin{center}
+\captionof{table}{Resultado de Q3: ahorro efectivo por combo}
+\label{tab:q3}
+\begin{tablaAPA}
+\begin{tabular}{L{4.2cm} R{2.5cm} R{2.8cm} R{1.9cm} R{2.4cm}}
+\toprule
+\textbf{Combo} & \textbf{Precio venta} & \textbf{Suma componentes} & \textbf{Desc.\ (\%)} & \textbf{Ahorro (Bs.)} \\
+\midrule
+Gaming PC Ultimate & 36800.00 & 38800.00 & 5.15 & 2000.00 \\
+Starter Build DDR5 & 14250.00 & 15000.00 & 5.00 & 750.00 \\
+Setup Gaming Completo & 10500.00 & 11200.00 & 6.25 & 700.00 \\
+\bottomrule
+\end{tabular}
+\end{tablaAPA}
+\fuenteAPA{Salida de la consulta Q3 (vista \texttt{ventas.vw\_combos\_rentabilidad}) en Supabase.}
+\end{center}
+
+\textbf{Interpretación:} El descuento porcentual almacenado en \texttt{catalogo.Combos} coincide con el ahorro calculado a partir de los precios de los componentes (por ejemplo, 2000.00 sobre 38800.00 equivale a 5.15\,\%), lo que confirma la consistencia entre el precio de venta del combo y su composición en \texttt{ComboComponentes}.
+\textit{Gaming PC Ultimate} ofrece el mayor ahorro absoluto (Bs.\ 2000.00) y \textit{Setup Gaming Completo} el mayor porcentaje (6.25\,\%).
 
 \subsection{Consulta 4: Clientes con mayor gasto acumulado}
 
-\textbf{Requerimiento:} Identificar los diez clientes con mayor gasto total para diseñar programas de fidelización.
+\textbf{Requerimiento:} Identificar a los clientes con mayor gasto total para diseñar programas de fidelización.
 
-\begin{lstlisting}[language=SQL, caption={Top 10 clientes por gasto acumulado}, label=lst:q4]
-SELECT
-  u."NombreCompleto"   AS cliente,
-  u."Email"            AS email,
-  COUNT(p."Id")        AS num_pedidos,
-  SUM(p."Total")       AS gasto_total
-FROM "AspNetUsers"  u
-JOIN ventas."Pedidos" p ON p."UserId" = u."Id"
-WHERE p."Estado" IN (1,2)
-GROUP BY u."Id", u."NombreCompleto", u."Email"
-ORDER BY gasto_total DESC
-LIMIT 10;
-\end{lstlisting}
+\lstinputlisting[language=SQL, firstline=188, lastline=188, caption={Q4: top de clientes mediante función almacenada}, label=lst:q4]{anexos/consultas_y_pruebas_bd2.sql}
 
-\textbf{Interpretación:} Los clientes que superan \$2000 USD en compras acumuladas representan el segmento premium; implementar un programa de puntos o descuentos escalonados reduciría la tasa de abandono de este segmento.
+\begin{center}
+\captionof{table}{Resultado de Q4: clientes por gasto acumulado}
+\label{tab:q4}
+\begin{tablaAPA}
+\begin{tabular}{L{3.6cm} L{5.4cm} R{1.7cm} R{2.6cm}}
+\toprule
+\textbf{Cliente} & \textbf{Correo} & \textbf{Pedidos} & \textbf{Gasto (Bs.)} \\
+\midrule
+Ana García Pérez & \texttt{cliente@techparts.com} & 9 & 127716.00 \\
+Carlos Mendoza Rivera & \texttt{gerente.general@techparts.com} & 1 & 52780.00 \\
+Laura Sánchez Morales & \texttt{vendedor@techparts.com} & 1 & 25404.00 \\
+\bottomrule
+\end{tabular}
+\end{tablaAPA}
+\fuenteAPA{Salida de \texttt{ventas.fn\_top\_clientes(10)} en Supabase.}
+\end{center}
 
-\subsection{Consulta 5: Tasa de abandono de carrito}
+\textbf{Interpretación:} Un solo cliente concentra el 62.0\,\% del gasto acumulado (Bs.\ 127716.00 de Bs.\ 205900.00) y 9 de los 11 pedidos vigentes.
+Esta concentración justifica un programa de fidelización escalonado y evidencia el riesgo de depender de pocas cuentas.
 
-\textbf{Requerimiento:} Calcular el porcentaje de carritos abandonados respecto al total de sesiones de compra iniciadas.
+\subsection{Consulta 5: Abandono de carrito (JSONB)}
 
-\begin{lstlisting}[language=SQL, caption={Tasa de abandono de carrito por mes}, label=lst:q5]
-SELECT
-  DATE_TRUNC('month', ca."FechaCreado") AS mes,
-  COUNT(ca."Id")                        AS carritos_abandonados,
-  COUNT(p."Id")                         AS pedidos_completados,
-  ROUND(
-    COUNT(ca."Id")::numeric /
-    NULLIF(COUNT(ca."Id") + COUNT(p."Id"), 0) * 100, 2
-  ) AS tasa_abandono_pct
-FROM ventas."CarritosAbandonados" ca
-FULL OUTER JOIN ventas."Pedidos"  p
-  ON DATE_TRUNC('month', ca."FechaCreado") =
-     DATE_TRUNC('month', p."FechaPedido")
-GROUP BY mes
-ORDER BY mes DESC;
-\end{lstlisting}
+\textbf{Requerimiento:} Cuantificar el monto en riesgo por carritos no convertidos, consultando el contenido JSONB mediante el operador de contención \texttt{@>} (acelerado por el índice GIN).
 
-\textbf{Interpretación:} Una tasa de abandono superior al 65\% indica fricciones en el proceso de pago.
-Se recomienda implementar notificaciones automáticas (email/SMS) a las 24 horas del abandono para recuperar conversiones.
+\lstinputlisting[language=SQL, firstline=191, lastline=199, caption={Q5: carritos abandonados por mes con filtro JSONB}, label=lst:q5]{anexos/consultas_y_pruebas_bd2.sql}
 
-\subsection{Consulta 6: Stock crítico --- alerta de reabastecimiento}
+\begin{center}
+\captionof{table}{Resultado de Q5 y estado de la tabla \texttt{ventas.CarritosAbandonados}}
+\label{tab:q5}
+\begin{tablaAPA}
+\begin{tabular}{L{4.4cm} R{1.2cm} R{2.6cm} R{1.6cm} L{2.6cm}}
+\toprule
+\textbf{Consulta / registro} & \textbf{Id} & \textbf{Total (Bs.)} & \textbf{Ítems} & \textbf{Convertido} \\
+\midrule
+Q5 (filtro \texttt{NOT Convertido}) & \multicolumn{4}{l}{0 filas devueltas} \\
+Carrito registrado & 1 & 19500.00 & 1 & verdadero \\
+\bottomrule
+\end{tabular}
+\end{tablaAPA}
+\fuenteAPA{Salida de la consulta Q5 y consulta directa a \texttt{ventas.CarritosAbandonados} en Supabase.}
+\end{center}
 
-\textbf{Requerimiento:} Listar todos los componentes con stock igual o inferior a 5 unidades para activar órdenes de compra a proveedores.
+\textbf{Interpretación:} La consulta no devuelve filas porque el único carrito registrado (RTX 5080 Ti, Bs.\ 19500.00) figura como convertido: el procedimiento \texttt{sp\_confirmar\_venta} marca \texttt{Convertido = TRUE} para el usuario que concreta la compra, de modo que, tras la prueba transaccional con \texttt{COMMIT}, el carrito dejó de contarse como abandonado.
+El resultado vacío es por tanto coherente con el diseño y muestra que la tabla se mantiene sincronizada con el flujo de ventas.
 
-\begin{lstlisting}[language=SQL, caption={Alerta de stock crítico}, label=lst:q6]
-SELECT
-  c."Id",
-  c."Nombre"       AS componente,
-  cat."Nombre"     AS categoria,
-  m."Nombre"       AS marca,
-  c."Stock"        AS stock_actual,
-  c."Precio"       AS precio_unitario
-FROM catalogo."Componentes" c
-JOIN catalogo."Categorias"  cat ON c."CategoriaId" = cat."Id"
-JOIN catalogo."Marcas"      m   ON c."MarcaId"     = m."Id"
-WHERE c."Stock" <= 5 AND c."Activo" = TRUE
-ORDER BY c."Stock" ASC, cat."Nombre";
-\end{lstlisting}
+\subsection{Consulta 6: Alerta de stock crítico}
 
-\textbf{Interpretación:} Las fuentes de poder Corsair HX1500i (8 unidades) y el monitor LG OLED (7 unidades) se acercan al umbral; la GPU RTX 5080 Ti con 12 unidades no es crítica pero sí sensible dado su alta demanda.
+\textbf{Requerimiento:} Listar los componentes activos cuyo stock es igual o inferior al mínimo configurado, indicando su proveedor para emitir órdenes de compra.
+
+\lstinputlisting[language=SQL, firstline=202, lastline=216, caption={Q6: alerta de stock crítico con proveedor}, label=lst:q6]{anexos/consultas_y_pruebas_bd2.sql}
+
+\begin{center}
+\captionof{table}{Resultado de Q6: componentes bajo el stock mínimo}
+\label{tab:q6}
+\begin{tablaAPA}
+\footnotesize
+\begin{tabular}{L{3.6cm} L{1.5cm} L{1.5cm} R{1.0cm} R{1.1cm} L{2.9cm} L{2.5cm}}
+\toprule
+\textbf{Componente} & \textbf{Categ.} & \textbf{Marca} & \textbf{Stock} & \textbf{Mín.} & \textbf{Proveedor} & \textbf{Contacto} \\
+\midrule
+Lian Li O11 Dynamic EVO & Cases & Lian Li & 4 & 5 & Cooler Master Latam & \texttt{cm@latam.com} \\
+\bottomrule
+\end{tabular}
+\end{tablaAPA}
+\fuenteAPA{Salida de la consulta Q6 en Supabase (PostgreSQL).}
+\end{center}
+
+\textbf{Interpretación:} Solo un componente de los 15 activos está bajo su mínimo: el gabinete Lian Li O11 Dynamic EVO (4 unidades frente a un mínimo de 5), cuyo proveedor registrado es Cooler Master Latam.
+El campo \texttt{StockMinimo} por producto, incorporado en el rediseño, permite que la alerta sea específica en lugar de usar un umbral global.
 
 \subsection{Consulta 7: Método de pago preferido}
 
-\textbf{Requerimiento:} Determinar la distribución de métodos de pago para optimizar las integraciones con pasarelas de pago.
+\textbf{Requerimiento:} Determinar la distribución de métodos de pago en los pedidos no devueltos ni cancelados.
 
-\begin{lstlisting}[language=SQL, caption={Distribución de métodos de pago}, label=lst:q7]
-SELECT
-  CASE "MetodoPago"
-    WHEN 0 THEN 'Efectivo'
-    WHEN 1 THEN 'Tarjeta de Credito'
-    WHEN 2 THEN 'Transferencia Bancaria'
-    WHEN 3 THEN 'QR / Billetera Digital'
-  END AS metodo,
-  COUNT(*)                      AS total_pedidos,
-  SUM("Total")                  AS monto_total,
-  ROUND(COUNT(*) * 100.0 /
-    SUM(COUNT(*)) OVER (), 2)   AS porcentaje
-FROM ventas."Pedidos"
-WHERE "Estado" != 4  -- excluye cancelados
-GROUP BY "MetodoPago"
-ORDER BY total_pedidos DESC;
-\end{lstlisting}
+\lstinputlisting[language=SQL, firstline=219, lastline=232, caption={Q7: distribución de métodos de pago con función ventana}, label=lst:q7]{anexos/consultas_y_pruebas_bd2.sql}
 
-\textbf{Interpretación:} La tarjeta de crédito domina con más del 55\% de las transacciones.
-Las billeteras digitales (QR) crecen aceleradamente entre el segmento joven (18-28 años), lo que justifica priorizar esta integración.
+\begin{center}
+\captionof{table}{Resultado de Q7: distribución de métodos de pago}
+\label{tab:q7}
+\begin{tablaAPA}
+\begin{tabular}{L{4.4cm} R{2.0cm} R{3.0cm} R{2.0cm}}
+\toprule
+\textbf{Método de pago} & \textbf{Pedidos} & \textbf{Monto (Bs.)} & \textbf{\%} \\
+\midrule
+Tarjeta & 6 & 120756.00 & 54.55 \\
+QR / Billetera Digital & 3 & 29580.00 & 27.27 \\
+Efectivo & 2 & 55564.00 & 18.18 \\
+\bottomrule
+\end{tabular}
+\end{tablaAPA}
+\fuenteAPA{Salida de la consulta Q7 en Supabase (PostgreSQL).}
+\end{center}
+
+\textbf{Interpretación:} La tarjeta concentra el 54.55\,\% de los pedidos, pero el efectivo registra el ticket promedio más alto (Bs.\ 27782.00 frente a Bs.\ 20126.00 de la tarjeta y Bs.\ 9860.00 del QR).
+La transferencia no aparece porque todos sus pedidos se encuentran devueltos o cancelados y el filtro \texttt{Estado NOT IN (3, 4)} los excluye.
+La suma de montos (Bs.\ 205900.00) coincide con el gasto total de la Tabla~\ref{tab:q4}, lo que valida la consistencia entre consultas.
 
 \subsection{Consulta 8: Tiempo promedio de entrega por sucursal}
 
-\textbf{Requerimiento:} Medir la eficiencia operativa de cada sucursal mediante el tiempo promedio entre confirmación y entrega del pedido.
+\textbf{Requerimiento:} Medir la eficiencia operativa de cada sucursal mediante el tiempo promedio entre pedido y entrega.
 
-\begin{lstlisting}[language=SQL, caption={Tiempo promedio de entrega por sucursal}, label=lst:q8]
-SELECT
-  s."Nombre"                              AS sucursal,
-  s."Ciudad"                             AS ciudad,
-  COUNT(p."Id")                          AS pedidos_entregados,
-  ROUND(AVG(
-    EXTRACT(EPOCH FROM (p."FechaEntrega" - p."FechaPedido"))
-    / 86400
-  )::numeric, 1)                         AS dias_promedio
-FROM ventas."Pedidos"   p
-JOIN operaciones."Sucursales" s ON p."SucursalId" = s."Id"
-WHERE p."Estado" = 2  -- Entregado
-GROUP BY s."Id", s."Nombre", s."Ciudad"
-ORDER BY dias_promedio;
-\end{lstlisting}
+\lstinputlisting[language=SQL, firstline=235, lastline=246, caption={Q8: tiempo promedio de entrega por sucursal y región}, label=lst:q8]{anexos/consultas_y_pruebas_bd2.sql}
 
-\textbf{Interpretación:} La sucursal de Cochabamba lidera en tiempo de entrega (1.8 días promedio); las sucursales de ciudades secundarias presentan tiempos superiores a 4 días, indicando oportunidades de mejora logística.
+\begin{center}
+\captionof{table}{Resultado de Q8: días promedio de entrega}
+\label{tab:q8}
+\begin{tablaAPA}
+\begin{tabular}{L{2.6cm} L{3.6cm} L{2.4cm} R{2.4cm} R{2.0cm}}
+\toprule
+\textbf{Región} & \textbf{Sucursal} & \textbf{Ciudad} & \textbf{Entregados} & \textbf{Días prom.} \\
+\midrule
+Cochabamba & Sucursal Centro & Cochabamba & 6 & 1.83 \\
+La Paz & Sucursal La Paz & La Paz & 1 & 3.00 \\
+\bottomrule
+\end{tabular}
+\end{tablaAPA}
+\fuenteAPA{Salida de la consulta Q8 en Supabase (PostgreSQL).}
+\end{center}
 
-\subsection{Consulta 9: Componentes nunca vendidos}
+\textbf{Interpretación:} La Sucursal Centro entrega en 1.83 días en promedio (6 pedidos) y la Sucursal La Paz en 3.00 días (1 pedido), es decir 1.17 días más.
+Con un solo pedido entregado en La Paz la diferencia no es estadísticamente concluyente; la consulta queda disponible para reevaluarse cuando el volumen crezca.
 
-\textbf{Requerimiento:} Detectar componentes que no han registrado ninguna venta para evaluar su continuidad en el catálogo.
+\subsection{Consulta 9: Componentes sin ventas y mermas (ODS 12)}
 
-\begin{lstlisting}[language=SQL, caption={Componentes sin ventas registradas}, label=lst:q9]
-SELECT
-  c."Id",
-  c."Nombre"      AS componente,
-  cat."Nombre"    AS categoria,
-  c."Precio",
-  c."Stock",
-  c."CreadoEn"   AS en_catalogo_desde
-FROM catalogo."Componentes" c
-JOIN catalogo."Categorias"  cat ON c."CategoriaId" = cat."Id"
-WHERE c."Id" NOT IN (
-  SELECT DISTINCT "ComponenteId"
-  FROM ventas."PedidoItems"
-  WHERE "ComponenteId" IS NOT NULL
-)
-AND c."Activo" = TRUE
-ORDER BY c."CreadoEn";
-\end{lstlisting}
+\textbf{Requerimiento:} Detectar componentes sin ventas registradas, su estado de obsolescencia y las unidades dadas de baja en \texttt{auditoria.MermasInventario}.
 
-\textbf{Interpretación:} Los componentes sin ventas superiores a 90 días deberían ser candidatos a liquidación con descuento o retiro del catálogo activo, liberando capital de trabajo y simplificando la gestión de inventario.
+\lstinputlisting[language=SQL, firstline=249, lastline=263, caption={Q9: componentes sin ventas y resumen de mermas}, label=lst:q9]{anexos/consultas_y_pruebas_bd2.sql}
 
-\subsection{Consulta 10: Vista analítica --- dashboard ejecutivo}
+\begin{center}
+\captionof{table}{Resultado de Q9: componentes sin ventas}
+\label{tab:q9}
+\begin{tablaAPA}
+\begin{tabular}{R{0.8cm} L{4.4cm} L{3.0cm} R{1.2cm} L{2.8cm} R{1.4cm}}
+\toprule
+\textbf{Id} & \textbf{Componente} & \textbf{Categoría} & \textbf{Stock} & \textbf{Obsolescencia} & \textbf{Merma} \\
+\midrule
+10 & Razer BlackWidow V4 Pro & Perifericos & 30 & Vigente & 0 \\
+14 & Corsair MP700 PRO 2TB Gen5 & Almacenamiento & 25 & Vigente & 0 \\
+9 & Cooler Master MasterLiquid 360 ATMOS & Refrigeracion & 22 & Vigente & 0 \\
+6 & Corsair HX1500i Platinum & Fuentes de Poder & 20 & Vigente & 0 \\
+11 & AMD Ryzen 9 9950X & Procesadores & 15 & Vigente & 0 \\
+12 & ASUS ROG Crosshair X670E Hero & Tarjetas Madre & 12 & PorDescontinuar & 1 \\
+13 & AMD Radeon RX 7900 XTX & Tarjetas de Video & 8 & Vigente & 0 \\
+15 & Lian Li O11 Dynamic EVO & Cases & 4 & Vigente & 0 \\
+\bottomrule
+\end{tabular}
+\end{tablaAPA}
+\fuenteAPA{Salida de la consulta Q9 en Supabase (PostgreSQL).}
+\end{center}
 
-\textbf{Requerimiento:} Generar un resumen ejecutivo mensual con KPIs clave para la gerencia general.
+\textbf{Interpretación:} Ocho de los 15 componentes no registran ventas y mantienen 136 unidades en inventario.
+La placa ASUS ROG Crosshair X670E Hero ya figura como \texttt{PorDescontinuar} y tiene una unidad dada de baja en el registro de mermas, lo que evidencia el seguimiento del ciclo de vida del hardware que respalda el ODS~12; los productos de este listado son candidatos a liquidación o revisión de catálogo para evitar obsolescencia.
 
-\begin{lstlisting}[language=SQL, caption={KPIs ejecutivos mensuales}, label=lst:q10]
-SELECT
-  DATE_TRUNC('month', p."FechaPedido")     AS mes,
-  COUNT(DISTINCT p."Id")                  AS total_pedidos,
-  COUNT(DISTINCT p."UserId")              AS clientes_unicos,
-  SUM(p."Total")                          AS facturacion_total,
-  ROUND(AVG(p."Total"), 2)                AS ticket_promedio,
-  SUM(CASE WHEN p."Estado" = 4 THEN 1 ELSE 0 END)
-                                          AS pedidos_cancelados,
-  ROUND(
-    SUM(CASE WHEN p."Estado" = 4 THEN 1 ELSE 0 END) * 100.0
-    / NULLIF(COUNT(p."Id"),0), 2
-  )                                       AS tasa_cancelacion_pct
-FROM ventas."Pedidos" p
-GROUP BY mes
-ORDER BY mes DESC
-LIMIT 12;
-\end{lstlisting}
+\subsection{Consulta 10: Dashboard ejecutivo mensual}
 
-\textbf{Interpretación:} El ticket promedio de \$485 USD indica una base de clientes con alto poder adquisitivo orientada a hardware premium.
-La tasa de cancelación inferior al 8\% refleja una experiencia de compra satisfactoria, aunque el stock limitado de GPUs podría elevar este indicador si no se gestiona el inventario de forma proactiva.
+\textbf{Requerimiento:} Generar un resumen mensual con indicadores clave para la gerencia general, validando además las funciones almacenadas.
+
+\lstinputlisting[language=SQL, firstline=266, lastline=276, caption={Q10: indicadores ejecutivos mensuales}, label=lst:q10]{anexos/consultas_y_pruebas_bd2.sql}
+
+\begin{center}
+\captionof{table}{Resultado de Q10: indicadores ejecutivos mensuales}
+\label{tab:q10}
+\begin{tablaAPA}
+\begin{tabular}{L{1.9cm} R{1.7cm} R{1.9cm} R{2.9cm} R{2.5cm} R{2.3cm}}
+\toprule
+\textbf{Mes} & \textbf{Pedidos} & \textbf{Clientes} & \textbf{Facturación (Bs.)} & \textbf{Ticket (Bs.)} & \textbf{Dev./Canc.} \\
+\midrule
+2026-11 & 4 & 2 & 76212.00 & 19053.00 & 0 \\
+2026-10 & 5 & 2 & 93960.00 & 18792.00 & 2 \\
+2026-09 & 4 & 1 & 58812.00 & 14703.00 & 0 \\
+\bottomrule
+\end{tabular}
+\end{tablaAPA}
+\fuenteAPA{Salida de la consulta Q10 en Supabase (PostgreSQL).}
+\end{center}
+
+La función \texttt{catalogo.fn\_recalcular\_stock\_combo} se validó con la consulta de las líneas 282--283 del script de pruebas, que compara el stock registrado de cada combo con el máximo que permite el inventario actual de sus componentes.
+
+\begin{center}
+\captionof{table}{Validación de \texttt{catalogo.fn\_recalcular\_stock\_combo}}
+\label{tab:fn-stock-combo}
+\begin{tablaAPA}
+\begin{tabular}{L{4.6cm} R{3.0cm} R{4.0cm}}
+\toprule
+\textbf{Combo} & \textbf{Stock registrado} & \textbf{Máximo calculado} \\
+\midrule
+Gaming PC Ultimate & 5 & 10 \\
+Setup Gaming Completo & 8 & 8 \\
+Starter Build DDR5 & 8 & 10 \\
+\bottomrule
+\end{tabular}
+\end{tablaAPA}
+\fuenteAPA{Salida de la consulta de validación en Supabase (PostgreSQL).}
+\end{center}
+
+\textbf{Interpretación:} Septiembre, octubre y noviembre suman 13 pedidos y Bs.\ 228984.00; la diferencia de Bs.\ 23084.00 respecto del gasto acumulado de la Tabla~\ref{tab:q4} proviene de pedidos fuera de los estados Completado y Entregado (los dos pedidos devueltos o cancelados de octubre, 40\,\% de los pedidos de ese mes).
+Respecto de los combos, el stock registrado de \textit{Gaming PC Ultimate} y \textit{Starter Build DDR5} es inferior al que permitiría el inventario de componentes (10 unidades), por lo que existe capacidad para reponer stock de combos sin comprar insumos adicionales.

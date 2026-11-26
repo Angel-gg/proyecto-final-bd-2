@@ -50,7 +50,7 @@ An\'alogamente, \texttt{Marca text} se reemplaza por \texttt{MarcaId integer FK}
 
 \subsubsection{Separaci\'on en esquemas de negocio}
 
-Se organiza la base de datos en cinco esquemas especializados:
+Se organiza la base de datos en cuatro esquemas de negocio especializados (\texttt{catalogo}, \texttt{ventas}, \texttt{operaciones} y \texttt{auditoria}), manteniendo las tablas de autenticaci\'on de ASP.NET Core Identity en el esquema \texttt{public}:
 
 \begin{center}
 \begin{tablaAPA}
@@ -61,8 +61,8 @@ Se organiza la base de datos en cinco esquemas especializados:
 \texttt{catalogo} & Componentes, Categorias, Marcas, Combos, ComboComponentes & Cat\'alogo de productos y agrupaciones \\
 \texttt{ventas} & Pedidos, PedidoItems, CarritosAbandonados & Ciclo de vida de ventas \\
 \texttt{operaciones} & Sucursales, Proveedores, Regiones & Log\'istica y abastecimiento \\
-\texttt{seguridad} & AspNetUsers (extendida) + tablas Identity & Identidad y autorizaci\'on \\
-\texttt{auditoria} & AuditoriaPedidos, AuditoriaComponentes & Trazabilidad de cambios \\
+\texttt{auditoria} & AuditoriaPedidos, AuditoriaComponentes, MermasInventario & Trazabilidad de cambios y ODS 12 \\
+\texttt{public} & AspNetUsers (extendida) + tablas Identity & Identidad y autorizaci\'on \\
 \bottomrule
 \end{tabular}
 \end{tablaAPA}
@@ -159,50 +159,52 @@ La restricci\'on \texttt{CHECK ((ComponenteId IS NOT NULL AND ComboId IS NULL) O
 \subsection{Diagrama Entidad-Relaci\'on --- Estado DESPU\'ES}
 
 \figuraAPA{fig:der-despues}{Diagrama Entidad-Relaci\'on normalizado --- Estado DESPU\'ES}{%
-\begin{tikzpicture}[
-  ent/.style={draw, rectangle, rounded corners=3pt, fill=green!12, minimum width=2.6cm, minimum height=0.65cm, font=\small\bfseries, align=center},
-  aux/.style={draw, rectangle, rounded corners=3pt, fill=blue!10, minimum width=2.2cm, minimum height=0.6cm, font=\small, align=center},
-  aud/.style={draw, rectangle, rounded corners=3pt, fill=gray!15, minimum width=2.4cm, minimum height=0.6cm, font=\small, align=center},
+\begin{tikzpicture}[scale=0.95, transform shape,
+  ent/.style={draw, rectangle, rounded corners=3pt, fill=green!12, minimum width=2.6cm, minimum height=0.7cm, font=\footnotesize\bfseries, align=center, inner sep=3pt},
+  aux/.style={draw, rectangle, rounded corners=3pt, fill=blue!10, minimum width=2.6cm, minimum height=0.7cm, font=\footnotesize, align=center, inner sep=3pt},
+  aud/.style={draw, rectangle, rounded corners=3pt, fill=gray!20, minimum width=2.6cm, minimum height=0.7cm, font=\footnotesize, align=center, inner sep=3pt},
   fk/.style={-Stealth, thick},
-  node distance=1.3cm and 2.0cm
+  trg/.style={-Stealth, thick, dashed, gray!70!black}
 ]
-% Esquema catalogo
-\node[aux] (cat) {Categorias};
-\node[aux, right=2cm of cat] (mar) {Marcas};
-\node[ent, below=1.2cm of cat] (comp) {Componentes};
-\node[ent, right=2.3cm of comp] (combos) {Combos};
-\node[ent, right=2.3cm of combos] (ccomp) {Combo\\Componentes};
+% Fila 0: cat\'alogo auxiliar y auditor\'ia de componentes
+\node[aux] (cat) at (3.0,0) {Categorias};
+\node[aux] (mar) at (7.4,0) {Marcas};
+\node[aud] (audcomp) at (11.8,0) {AuditoriaComponentes};
 
-% Esquema ventas
-\node[ent, below=1.8cm of comp] (ped) {Pedidos};
-\node[ent, right=2.3cm of ped] (pitems) {PedidoItems};
-\node[ent, right=2.3cm of pitems] (carr) {Carritos\\Abandonados};
+% Fila 1: cat\'alogo
+\node[ent] (comp) at (3.0,-2.6) {Componentes};
+\node[ent] (combos) at (7.4,-2.6) {Combos};
+\node[ent] (ccomp) at (11.8,-2.6) {ComboComponentes};
 
-% Esquema operaciones
-\node[aux, below=1.6cm of ped] (suc) {Sucursales};
-\node[aux, right=2.2cm of suc] (prov) {Proveedores};
-\node[aux, left=2.2cm of suc] (reg) {Regiones};
+% Fila 2: ventas y seguridad
+\node[aux] (users) at (-0.4,-5.2) {AspNetUsers};
+\node[ent] (ped) at (3.0,-5.2) {Pedidos};
+\node[ent] (pitems) at (7.4,-5.2) {PedidoItems};
+\node[ent] (carr) at (11.8,-5.2) {CarritosAbandonados};
 
-% Esquema seguridad
-\node[aux, left=2.5cm of ped] (users) {AspNetUsers};
+% Fila 3: operaciones y auditor\'ia de pedidos (sin solapamientos)
+\node[aux] (reg) at (-0.4,-7.8) {Regiones};
+\node[aux] (suc) at (3.0,-7.8) {Sucursales};
+\node[aud] (audped) at (7.4,-7.8) {AuditoriaPedidos};
+\node[aux] (prov) at (11.8,-7.8) {Proveedores};
 
-% Esquema auditoria
-\node[aud, below=1.6cm of pitems] (audped) {Auditoria\\Pedidos};
-\node[aud, right=1.5cm of audped] (audcomp) {Auditoria\\Componentes};
+% Claves for\'aneas
+\draw[fk] (comp.north) -- (cat.south);
+\draw[fk] (comp.north east) -- (mar.south west);
+\draw[fk] (ccomp.west) -- (combos.east);
+\draw[fk] (ccomp.south) -- (11.8,-3.7) -- (3.0,-3.7) -- (comp.south);
+\draw[fk] (pitems.north) -- (combos.south);
+\draw[fk] (pitems.north west) -- (comp.south east);
+\draw[fk] (pitems.west) -- (ped.east);
+\draw[fk] (ped.west) -- (users.east);
+\draw[fk] (ped.south) -- (suc.north);
+\draw[fk] (carr.north) -- (11.8,-4.2) -- (-0.4,-4.2) -- (users.north);
+\draw[fk] (users.south) -- (reg.north);
+\draw[fk] (users.south east) -- (suc.north west);
+\draw[fk] (suc.west) -- (reg.east);
 
-% FKs
-\draw[fk] (comp) -- node[left,font=\tiny]{FK} (cat);
-\draw[fk] (comp.north east) -- node[above,font=\tiny]{FK} (mar.south west);
-\draw[fk] (ccomp) -- node[above,font=\tiny]{FK} (combos);
-\draw[fk] (ccomp.south) -- node[right,font=\tiny]{FK} (comp.north east);
-\draw[fk] (ped) -- node[above,font=\tiny]{FK} (users);
-\draw[fk] (pitems) -- node[above,font=\tiny]{FK} (ped);
-\draw[fk] (pitems.north) -- node[right,font=\tiny]{FK opt} (comp.south east);
-\draw[fk] (pitems.north east) -- node[above,font=\tiny]{FK opt} (combos.south);
-\draw[fk] (carr) -- node[right,font=\tiny]{FK} (users);
-\draw[fk] (users) -- node[left,font=\tiny]{FK} (suc);
-\draw[fk] (users.south west) -- node[below,font=\tiny]{FK} (reg.north east);
-\draw[fk] (audped) -- node[left,font=\tiny]{trig} (ped);
-\draw[fk] (audcomp) -- node[right,font=\tiny]{trig} (comp.south);
+% Disparadores de auditor\'ia
+\draw[trg] (audcomp.south west) -- (comp.east);
+\draw[trg] (audped.north west) -- (ped.south east);
 \end{tikzpicture}%
-}{Elaboraci\'on propia basada en el redise\~no propuesto para la materia Base de Datos II}
+}{Elaboraci\'on propia basada en el redise\~no desplegado en Supabase (flechas continuas: claves for\'aneas; discontinuas: disparadores de auditor\'ia)}

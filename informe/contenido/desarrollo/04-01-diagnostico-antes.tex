@@ -43,48 +43,42 @@ Products           & 1 & 0 & 0 & 0 & Tabla legacy en inglés, sin relaciones \\
 \subsection{Diagrama Entidad-Relación --- Estado ANTES}
 
 \figuraAPA{fig:der-antes}{Diagrama Entidad-Relación del esquema \texttt{public} --- Estado ANTES}{%
-\begin{tikzpicture}[
-  nodo/.style={draw, rectangle, rounded corners=3pt, fill=white, minimum width=2.5cm, minimum height=0.7cm, font=\small\bfseries, align=center},
-  attr/.style={draw, ellipse, fill=gray!10, font=\footnotesize, minimum width=1.8cm, minimum height=0.5cm},
-  rel/.style={draw, diamond, fill=yellow!20, font=\footnotesize, aspect=2, minimum width=1.8cm},
+\begin{tikzpicture}[scale=0.95, transform shape,
+  nodo/.style={draw, rectangle, rounded corners=3pt, fill=white, minimum width=2.6cm, minimum height=0.7cm, font=\footnotesize\bfseries, align=center, inner sep=3pt},
   fk/.style={-Stealth, thick},
-  nofk/.style={-Stealth, dashed, red, thick},
-  node distance=1.4cm and 2.0cm
+  nofk/.style={-Stealth, dashed, red, thick}
 ]
+% Tablas de ASP.NET Identity
+\node[nodo, fill=blue!10] (users) at (3.2,0) {AspNetUsers};
+\node[nodo, fill=blue!10] (roles) at (8.2,0) {AspNetRoles};
+\node[nodo, fill=blue!10] (userroles) at (3.2,-1.7) {AspNetUserRoles};
 
-% Tablas Identity
-\node[nodo, fill=blue!10] (users) {AspNetUsers};
-\node[nodo, fill=blue!10, right=2.5cm of users] (roles) {AspNetRoles};
-\node[nodo, fill=blue!10, below=1.0cm of users] (userroles) {AspNetUserRoles};
+% Tablas de negocio conectadas
+\node[nodo, fill=orange!10] (pedidos) at (0.5,-4.0) {Pedidos};
+\node[nodo, fill=green!10] (componentes) at (5.0,-4.0) {Componentes};
+\node[nodo, fill=green!10] (combos) at (8.8,-4.0) {Combos};
+\node[nodo, fill=green!10] (combocomp) at (12.6,-4.0) {ComboComponentes};
+\node[nodo, fill=orange!10] (pedidoitems) at (0.5,-6.2) {PedidoItems};
+\node[nodo, fill=orange!10] (carritos) at (11.4,-6.2) {CarritosAbandonados};
 
-% Tablas negocio
-\node[nodo, fill=green!10, below=2.0cm of userroles] (componentes) {Componentes};
-\node[nodo, fill=green!10, right=2.5cm of componentes] (combos) {Combos};
-\node[nodo, fill=green!10, right=2.5cm of combos] (combocomp) {ComboCompo\\nentes};
-\node[nodo, fill=orange!10, left=2.5cm of componentes] (pedidos) {Pedidos};
-\node[nodo, fill=orange!10, below=1.4cm of pedidos] (pedidoitems) {PedidoItems};
-\node[nodo, fill=orange!10, right=2.5cm of pedidoitems] (carritos) {CarritosAbandonados};
+% Tablas huérfanas (fila independiente, sin solapamiento)
+\node[nodo, fill=red!15] (sucursales) at (0.5,-8.8) {Sucursales};
+\node[nodo, fill=red!15] (proveedores) at (4.2,-8.8) {Proveedores};
+\node[nodo, fill=red!15] (products) at (7.9,-8.8) {Products};
+\node[draw=red, dashed, rounded corners=4pt, fit=(sucursales)(proveedores)(products), inner sep=7pt] {};
+\node[font=\tiny, red, text width=3.2cm, align=left] at (11.6,-8.8) {Tablas sin FK ni relaciones con el resto del modelo};
 
-% Tablas huérfanas
-\node[nodo, fill=red!15, below=1.4cm of componentes] (sucursales) {Sucursales};
-\node[nodo, fill=red!15, right=2.0cm of sucursales] (proveedores) {Proveedores};
-\node[nodo, fill=red!15, right=2.0cm of proveedores] (products) {Products};
+% FK con integridad referencial real
+\draw[fk] (userroles) -- (users);
+\draw[fk] (userroles.east) -- (roles.south west);
+\draw[fk] (pedidos.north) -- node[midway, left, font=\tiny]{RESTRICT} (users.south west);
+\draw[fk] (pedidoitems) -- node[midway, left, font=\tiny]{CASCADE} (pedidos);
+\draw[fk] (combocomp) -- node[midway, above, font=\tiny]{CASCADE} (combos);
+\draw[fk] (combocomp.south) -- (12.6,-5.1) -- (5.0,-5.1) -- node[pos=0.5, above, font=\tiny]{RESTRICT} (componentes.south);
+\draw[fk] (carritos.east) -- (14.4,-6.2) -- (14.4,1.0) -- (3.2,1.0) -- node[pos=0.5, above, font=\tiny]{CASCADE} (users.north);
 
-% FK con integridad real
-\draw[fk] (userroles) -- node[right,font=\tiny]{FK CASCADE} (users);
-\draw[fk] (userroles.north east) -- node[above,font=\tiny]{FK CASCADE} (roles.south west);
-\draw[fk] (pedidos) -- node[right,font=\tiny]{FK RESTRICT} (users);
-\draw[fk] (pedidoitems) -- node[right,font=\tiny]{FK CASCADE} (pedidos);
-\draw[fk] (carritos) -- node[above,font=\tiny]{FK CASCADE} (users);
-\draw[fk] (combocomp) -- node[above,font=\tiny]{FK CASCADE} (combos);
-\draw[fk] (combocomp.south) -- node[right,font=\tiny]{FK RESTRICT} (componentes.north east);
-
-% Referencia polimórfica sin FK
-\draw[nofk] (pedidoitems.east) -- node[below,font=\tiny,red]{sin FK real} (componentes.south west);
-
-% Sin conexiones (huérfanas)
-\node[right=0.5cm of products, font=\tiny, red, text width=2cm] {sin FK\\ni relaciones};
-
+% Referencia polimórfica sin FK real
+\draw[nofk] (pedidoitems.east) -- node[midway, below, font=\tiny, red]{sin FK real} (componentes.south west);
 \end{tikzpicture}%
 }{Elaboraci\'on propia con base en la consulta a \texttt{pg\_constraint} del esquema \texttt{public} de Supabase}
 

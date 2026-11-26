@@ -33,7 +33,7 @@ Este resultado ilustra el principio fundamental de la optimizaci\'on de consulta
 
 \subsection{Conclusi\'on 6 --- Separaci\'on de esquemas como buena pr\'actica}
 
-La organizaci\'on del modelo en cinco esquemas (\texttt{catalogo}, \texttt{ventas}, \texttt{operaciones}, \texttt{seguridad}, \texttt{auditoria}) establece l\'imites claros de responsabilidad, facilita la asignaci\'on granular de permisos a roles de base de datos y prepara la arquitectura para una eventual separaci\'on de microservicios sin romper los contratos de datos existentes.
+La organizaci\'on del modelo en cuatro esquemas de negocio especializados (\texttt{catalogo}, \texttt{ventas}, \texttt{operaciones} y \texttt{auditoria}), manteniendo las tablas de ASP.NET Core Identity en \texttt{public}, establece l\'imites claros de responsabilidad, facilita la asignaci\'on granular de permisos a roles de base de datos sin romper la autenticaci\'on existente y prepara la arquitectura para una eventual separaci\'on modular sin alterar los contratos de datos.
 
 \subsection{Recomendaciones}
 

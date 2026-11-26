@@ -868,11 +868,11 @@ BEGIN
     SELECT 1 FROM information_schema.columns
     WHERE table_schema = 'public' AND table_name = 'AspNetUsers' AND column_name = 'FullName'
   ) THEN
-    EXECUTE '
+    EXECUTE $sql$
       UPDATE public."AspNetUsers"
          SET "NombreCompleto" = COALESCE("NombreCompleto", "FullName")
        WHERE "NombreCompleto" IS NULL AND "FullName" IS NOT NULL;
-    ';
+    $sql$;
     ALTER TABLE public."AspNetUsers" DROP COLUMN IF EXISTS "FullName";
   END IF;
 

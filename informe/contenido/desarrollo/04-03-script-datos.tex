@@ -1,117 +1,156 @@
 % ============================================================================
-%  04-03: SCRIPT SQL Y DATOS REALISTAS
+%  04-03: SCRIPT SQL Y DATOS REALISTAS (SINCRONIZADO CON SUPABASE)
 % ============================================================================
 
 \section{Script SQL y datos de prueba realistas}
 
 \subsection{Creaci\'on de esquemas y tablas}
 
-El siguiente bloque DDL crea los cinco esquemas de negocio, las tablas normalizadas con todas sus restricciones declarativas y las relaciones foráneas con comportamientos \texttt{ON DELETE} apropiados.
-El script completo y ejecutable se incluye en el Anexo A (\texttt{script\_bd2\_completo.sql}).
+El siguiente bloque DDL crea los cuatro esquemas de negocio especializados (\texttt{operaciones}, \texttt{catalogo}, \texttt{ventas} y \texttt{auditoria}, manteniendo ASP.NET Core Identity en \texttt{public}), las tablas normalizadas en 3FN con sus restricciones declarativas (\texttt{UNIQUE} y \texttt{CHECK}) y las relaciones for\'aneas con comportamientos \texttt{ON DELETE} apropiados.
+El script completo e idempotente desplegado en Supabase se incluye en el Anexo A (\texttt{script\_bd2\_completo.sql}).
 
-\begin{lstlisting}[language=SQL, caption={DDL: Esquemas, tablas de cat\'alogo y restricciones}, label=lst:ddl-catalogo]
+\begin{lstlisting}[language=SQL, caption={DDL desplegado: esquemas y tablas del esquema catalogo (3FN)}, label=lst:ddl-catalogo]
 -- =============================================
--- ESQUEMAS DE NEGOCIO
+-- ESQUEMAS DE NEGOCIO (Identity permanece en public)
 -- =============================================
+CREATE SCHEMA IF NOT EXISTS operaciones;
 CREATE SCHEMA IF NOT EXISTS catalogo;
 CREATE SCHEMA IF NOT EXISTS ventas;
-CREATE SCHEMA IF NOT EXISTS operaciones;
 CREATE SCHEMA IF NOT EXISTS auditoria;
 
 -- =============================================
 -- ESQUEMA CATALOGO
 -- =============================================
-CREATE TABLE catalogo."Categorias" (
-  "Id"     SERIAL PRIMARY KEY,
-  "Nombre" VARCHAR(60)  NOT NULL,
-  "Slug"   VARCHAR(80)  NOT NULL,
+CREATE TABLE IF NOT EXISTS catalogo."Categorias" (
+  "Id"          SERIAL PRIMARY KEY,
+  "Nombre"      VARCHAR(80)  NOT NULL,
+  "Slug"        VARCHAR(100) NOT NULL,
+  "Descripcion" VARCHAR(300),
+  "Activa"      BOOLEAN      NOT NULL DEFAULT TRUE,
   CONSTRAINT uq_categorias_nombre UNIQUE ("Nombre"),
   CONSTRAINT uq_categorias_slug   UNIQUE ("Slug")
 );
 
-CREATE TABLE catalogo."Marcas" (
+CREATE TABLE IF NOT EXISTS catalogo."Marcas" (
   "Id"     SERIAL PRIMARY KEY,
   "Nombre" VARCHAR(80) NOT NULL,
-  "Pais"   VARCHAR(60),
+  "Pais"   VARCHAR(80),
+  "Activa" BOOLEAN     NOT NULL DEFAULT TRUE,
   CONSTRAINT uq_marcas_nombre UNIQUE ("Nombre")
 );
 
-CREATE TABLE catalogo."Componentes" (
-  "Id"          SERIAL PRIMARY KEY,
-  "Nombre"      VARCHAR(200)   NOT NULL,
-  "Descripcion" TEXT,
-  "CategoriaId" INTEGER        NOT NULL,
-  "MarcaId"     INTEGER        NOT NULL,
-  "Precio"      NUMERIC(10,2)  NOT NULL,
-  "Stock"       INTEGER        NOT NULL DEFAULT 0,
-  "ImagenUrl"   VARCHAR(500),
-  "Activo"      BOOLEAN        NOT NULL DEFAULT TRUE,
-  "CreadoEn"    TIMESTAMPTZ    NOT NULL DEFAULT NOW(),
+CREATE TABLE IF NOT EXISTS catalogo."Componentes" (
+  "Id"                  SERIAL PRIMARY KEY,
+  "Nombre"              VARCHAR(150)  NOT NULL,
+  "Descripcion"         VARCHAR(800)  NOT NULL,
+  "CategoriaId"         INTEGER       NOT NULL,
+  "MarcaId"             INTEGER       NOT NULL,
+  "ProveedorId"         INTEGER,
+  "Precio"              NUMERIC(18,2) NOT NULL,
+  "Stock"               INTEGER       NOT NULL DEFAULT 0,
+  "StockMinimo"         INTEGER       NOT NULL DEFAULT 5,
+  "ImageUrl"            VARCHAR(500),
+  "Especificaciones"    TEXT,
+  "EstadoObsolescencia" VARCHAR(20)   NOT NULL DEFAULT 'Vigente',
+  "Activo"              BOOLEAN       NOT NULL DEFAULT TRUE,
+  "CreadoEn"            TIMESTAMPTZ   NOT NULL DEFAULT NOW(),
+  "ActualizadoEn"       TIMESTAMPTZ,
+  CONSTRAINT uq_componentes_nombre UNIQUE ("Nombre"),
   CONSTRAINT ck_componentes_precio CHECK ("Precio" > 0),
-  CONSTRAINT ck_componentes_stock  CHECK ("Stock"  >= 0),
+  CONSTRAINT ck_componentes_stock  CHECK ("Stock" >= 0),
+  CONSTRAINT ck_componentes_min    CHECK ("StockMinimo" >= 0),
+  CONSTRAINT ck_componentes_obsol  CHECK (
+    "EstadoObsolescencia" IN ('Vigente', 'PorDescontinuar', 'Obsoleto', 'Merma')
+  ),
   CONSTRAINT fk_comp_categoria
     FOREIGN KEY ("CategoriaId")
     REFERENCES catalogo."Categorias"("Id") ON DELETE RESTRICT,
   CONSTRAINT fk_comp_marca
     FOREIGN KEY ("MarcaId")
-    REFERENCES catalogo."Marcas"("Id") ON DELETE RESTRICT
+    REFERENCES catalogo."Marcas"("Id") ON DELETE RESTRICT,
+  CONSTRAINT fk_comp_proveedor
+    FOREIGN KEY ("ProveedorId")
+    REFERENCES operaciones."Proveedores"("Id") ON DELETE SET NULL
 );
 
-CREATE TABLE catalogo."Combos" (
-  "Id"          SERIAL PRIMARY KEY,
-  "Nombre"      VARCHAR(200)   NOT NULL,
-  "Descripcion" TEXT,
-  "PrecioBase"  NUMERIC(10,2)  NOT NULL,
-  "Descuento"   NUMERIC(5,2)   NOT NULL DEFAULT 0,
-  "Activo"      BOOLEAN        NOT NULL DEFAULT TRUE,
-  CONSTRAINT ck_combos_precio     CHECK ("PrecioBase" > 0),
-  CONSTRAINT ck_combos_descuento  CHECK ("Descuento" >= 0 AND "Descuento" <= 100)
+CREATE TABLE IF NOT EXISTS catalogo."Combos" (
+  "Id"            SERIAL PRIMARY KEY,
+  "Nombre"        VARCHAR(150)  NOT NULL,
+  "Descripcion"   VARCHAR(1000) NOT NULL,
+  "PrecioVenta"   NUMERIC(18,2) NOT NULL,
+  "Descuento"     NUMERIC(5,2)  NOT NULL DEFAULT 0,
+  "ImageUrl"      VARCHAR(500),
+  "Stock"         INTEGER       NOT NULL DEFAULT 0,
+  "Activo"        BOOLEAN       NOT NULL DEFAULT TRUE,
+  "CreadoEn"      TIMESTAMPTZ   NOT NULL DEFAULT NOW(),
+  "ActualizadoEn" TIMESTAMPTZ,
+  CONSTRAINT uq_combos_nombre    UNIQUE ("Nombre"),
+  CONSTRAINT ck_combos_precio    CHECK ("PrecioVenta" > 0),
+  CONSTRAINT ck_combos_descuento CHECK ("Descuento" >= 0 AND "Descuento" <= 100),
+  CONSTRAINT ck_combos_stock     CHECK ("Stock" >= 0)
 );
 
-CREATE TABLE catalogo."ComboComponentes" (
+CREATE TABLE IF NOT EXISTS catalogo."ComboComponentes" (
   "ComboId"      INTEGER NOT NULL,
   "ComponenteId" INTEGER NOT NULL,
-  "Cantidad"     INTEGER NOT NULL,
-  CONSTRAINT pk_combo_comp   PRIMARY KEY ("ComboId", "ComponenteId"),
-  CONSTRAINT ck_cc_cantidad  CHECK ("Cantidad" > 0),
+  "Cantidad"     INTEGER NOT NULL DEFAULT 1,
+  CONSTRAINT pk_combo_comp PRIMARY KEY ("ComboId", "ComponenteId"),
+  CONSTRAINT ck_cc_cant    CHECK ("Cantidad" > 0),
   CONSTRAINT fk_cc_combo
     FOREIGN KEY ("ComboId")
     REFERENCES catalogo."Combos"("Id") ON DELETE CASCADE,
-  CONSTRAINT fk_cc_componente
+  CONSTRAINT fk_cc_comp
     FOREIGN KEY ("ComponenteId")
     REFERENCES catalogo."Componentes"("Id") ON DELETE RESTRICT
 );
 \end{lstlisting}
 
-\begin{lstlisting}[language=SQL, caption={DDL: Esquema ventas --- Pedidos y PedidoItems normalizados}, label=lst:ddl-ventas]
+\begin{lstlisting}[language=SQL, caption={DDL desplegado: esquema ventas (Pedidos, PedidoItems y CarritosAbandonados)}, label=lst:ddl-ventas]
 -- =============================================
 -- ESQUEMA VENTAS
 -- =============================================
-CREATE TABLE ventas."Pedidos" (
+CREATE TABLE IF NOT EXISTS ventas."Pedidos" (
   "Id"           SERIAL PRIMARY KEY,
-  "UserId"       TEXT           NOT NULL,
-  "FechaPedido"  TIMESTAMPTZ    NOT NULL DEFAULT NOW(),
-  "Total"        NUMERIC(12,2)  NOT NULL,
-  "MetodoPago"   SMALLINT       NOT NULL,
-  "Estado"       SMALLINT       NOT NULL DEFAULT 0,
+  "NumeroPedido" VARCHAR(30)   NOT NULL,
+  "UserId"       TEXT          NOT NULL,
+  "SucursalId"   INTEGER,
+  "FechaPedido"  TIMESTAMPTZ   NOT NULL DEFAULT NOW(),
+  "FechaEntrega" TIMESTAMPTZ,
+  "Subtotal"     NUMERIC(18,2) NOT NULL DEFAULT 0,
+  "Impuesto"     NUMERIC(18,2) NOT NULL DEFAULT 0,
+  "Total"        NUMERIC(18,2) NOT NULL DEFAULT 0,
+  "Comision"     NUMERIC(18,2) NOT NULL DEFAULT 0,
+  "MetodoPago"   SMALLINT      NOT NULL DEFAULT 1,
+  "Estado"       SMALLINT      NOT NULL DEFAULT 0,
   "Notas"        TEXT,
-  CONSTRAINT ck_pedidos_total   CHECK ("Total" >= 0),
-  CONSTRAINT ck_pedidos_metodo  CHECK ("MetodoPago" IN (0,1,2,3)),
-  CONSTRAINT ck_pedidos_estado  CHECK ("Estado" IN (0,1,2,3,4)),
-  CONSTRAINT fk_pedidos_user
+  CONSTRAINT uq_pedidos_numero UNIQUE ("NumeroPedido"),
+  CONSTRAINT ck_ped_subtotal   CHECK ("Subtotal" >= 0),
+  CONSTRAINT ck_ped_impuesto   CHECK ("Impuesto" >= 0),
+  CONSTRAINT ck_ped_total      CHECK ("Total" >= 0),
+  CONSTRAINT ck_ped_comision   CHECK ("Comision" >= 0),
+  CONSTRAINT ck_ped_metodo     CHECK ("MetodoPago" IN (0, 1, 2, 3)),
+  CONSTRAINT ck_ped_estado     CHECK ("Estado" IN (0, 1, 2, 3, 4)),
+  CONSTRAINT fk_ped_user
     FOREIGN KEY ("UserId")
-    REFERENCES "AspNetUsers"("Id") ON DELETE RESTRICT
+    REFERENCES public."AspNetUsers"("Id") ON DELETE RESTRICT,
+  CONSTRAINT fk_ped_sucursal
+    FOREIGN KEY ("SucursalId")
+    REFERENCES operaciones."Sucursales"("Id") ON DELETE SET NULL
 );
 
-CREATE TABLE ventas."PedidoItems" (
+CREATE TABLE IF NOT EXISTS ventas."PedidoItems" (
   "Id"             SERIAL        PRIMARY KEY,
   "PedidoId"       INTEGER       NOT NULL,
   "ComponenteId"   INTEGER,
   "ComboId"        INTEGER,
-  "Cantidad"       INTEGER       NOT NULL,
-  "PrecioUnitario" NUMERIC(10,2) NOT NULL,
+  "ProductoNombre" VARCHAR(200)  NOT NULL,
+  "PrecioUnitario" NUMERIC(18,2) NOT NULL,
+  "Cantidad"       INTEGER       NOT NULL DEFAULT 1,
+  "Subtotal"       NUMERIC(18,2) NOT NULL,
+  "ImageUrl"       VARCHAR(500),
   CONSTRAINT ck_pi_cantidad  CHECK ("Cantidad" > 0),
   CONSTRAINT ck_pi_precio    CHECK ("PrecioUnitario" > 0),
+  CONSTRAINT ck_pi_subtotal  CHECK ("Subtotal" > 0),
   CONSTRAINT ck_pi_exclusivo CHECK (
     ("ComponenteId" IS NOT NULL AND "ComboId" IS NULL) OR
     ("ComboId"      IS NOT NULL AND "ComponenteId" IS NULL)
@@ -119,7 +158,7 @@ CREATE TABLE ventas."PedidoItems" (
   CONSTRAINT fk_pi_pedido
     FOREIGN KEY ("PedidoId")
     REFERENCES ventas."Pedidos"("Id") ON DELETE CASCADE,
-  CONSTRAINT fk_pi_componente
+  CONSTRAINT fk_pi_comp
     FOREIGN KEY ("ComponenteId")
     REFERENCES catalogo."Componentes"("Id") ON DELETE RESTRICT,
   CONSTRAINT fk_pi_combo
@@ -127,96 +166,147 @@ CREATE TABLE ventas."PedidoItems" (
     REFERENCES catalogo."Combos"("Id") ON DELETE RESTRICT
 );
 
-CREATE TABLE ventas."CarritosAbandonados" (
-  "Id"           SERIAL      PRIMARY KEY,
-  "UserId"       TEXT        NOT NULL,
-  "ItemsJson"    JSONB       NOT NULL DEFAULT '[]'::jsonb,
-  "FechaCreado"  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  "FechaExpira"  TIMESTAMPTZ,
-  CONSTRAINT fk_carritos_user
+CREATE TABLE IF NOT EXISTS ventas."CarritosAbandonados" (
+  "Id"                   SERIAL        PRIMARY KEY,
+  "UserId"               TEXT          NOT NULL,
+  "FechaCreacion"        TIMESTAMPTZ   NOT NULL DEFAULT NOW(),
+  "FechaUltimaActividad" TIMESTAMPTZ   NOT NULL DEFAULT NOW(),
+  "FechaExpira"          TIMESTAMPTZ,
+  "ItemsJson"            JSONB         NOT NULL DEFAULT '[]'::jsonb,
+  "TotalEstimado"        NUMERIC(18,2) NOT NULL DEFAULT 0,
+  "TotalItems"           INTEGER       NOT NULL DEFAULT 0,
+  "Convertido"           BOOLEAN       NOT NULL DEFAULT FALSE,
+  CONSTRAINT ck_carr_total CHECK ("TotalEstimado" >= 0),
+  CONSTRAINT ck_carr_items CHECK ("TotalItems" >= 0),
+  CONSTRAINT fk_carr_user
     FOREIGN KEY ("UserId")
-    REFERENCES "AspNetUsers"("Id") ON DELETE CASCADE
+    REFERENCES public."AspNetUsers"("Id") ON DELETE CASCADE
 );
 \end{lstlisting}
 
-\subsection{Datos de prueba realistas --- Hardware Gamer}
+\subsection{Datos semilla realistas --- Hardware Gamer (Bs.)}
 
-El conjunto de datos semilla incluye 15 componentes reales de alta gama, 3 combos predefinidos, 5 sucursales, 10 proveedores y 10 pedidos de demostración.
+El conjunto de datos semilla desplegado en Supabase incluye 5 regiones, 5 sucursales, 10 proveedores, 10 categor\'ias, 12 marcas, 15 componentes gamer de alta gama expresados en bolivianos (Bs.) y 3 combos predefinidos, adem\'as de registros iniciales de mermas para respaldar el ODS~12.
 
-\begin{lstlisting}[language=SQL, caption={DML: Categorías, Marcas y Componentes gamer}, label=lst:dml-seed]
+\begin{lstlisting}[language=SQL, caption={DML desplegado: Categorias, Marcas y Componentes gamer en bolivianos (Bs.)}, label=lst:dml-seed]
 -- CATEGORIAS
-INSERT INTO catalogo."Categorias" ("Nombre", "Slug") VALUES
-  ('Tarjetas de Video',    'tarjetas-de-video'),
-  ('Procesadores',         'procesadores'),
-  ('Almacenamiento SSD',   'almacenamiento-ssd'),
-  ('Placas Madre',         'placas-madre'),
-  ('Memoria RAM',          'memoria-ram'),
-  ('Fuentes de Poder',     'fuentes-de-poder'),
-  ('Monitores',            'monitores'),
-  ('Perifericos',          'perifericos'),
-  ('Refrigeracion Liquida','refrigeracion-liquida'),
-  ('Gabinetes',            'gabinetes');
+INSERT INTO catalogo."Categorias" ("Nombre", "Slug", "Descripcion") VALUES
+  ('Tarjetas de Video', 'tarjetas-de-video', 'GPUs de alto rendimiento para gaming 4K e IA'),
+  ('Procesadores',      'procesadores',      'Unidades centrales de procesamiento Intel y AMD'),
+  ('Almacenamiento',    'almacenamiento',    'Unidades de estado solido NVMe PCIe Gen4 y Gen5'),
+  ('Tarjetas Madre',    'tarjetas-madre',    'Placas base entusiastas con soporte DDR5 y Wi-Fi 7'),
+  ('Memoria RAM',       'memoria-ram',       'Kits de memoria DDR5 de baja latencia'),
+  ('Fuentes de Poder',  'fuentes-de-poder',  'Fuentes modulares ATX 3.1 con certificacion 80 Plus'),
+  ('Monitores',         'monitores',         'Pantallas gamer OLED e IPS de alta tasa de refresco'),
+  ('Perifericos',       'perifericos',       'Mouses, teclados mecanicos y accesorios esports'),
+  ('Refrigeracion',     'refrigeracion',     'Sistemas de enfriamiento liquido AIO y ventiladores'),
+  ('Cases',             'cases',             'Gabinetes ATX con flujo de aire optimizado')
+ON CONFLICT ("Nombre") DO NOTHING;
 
 -- MARCAS
 INSERT INTO catalogo."Marcas" ("Nombre", "Pais") VALUES
-  ('NVIDIA',       'Estados Unidos'),
-  ('ASUS ROG',     'Taiwan'),
-  ('Samsung',      'Corea del Sur'),
-  ('G.SKILL',      'Taiwan'),
-  ('Corsair',      'Estados Unidos'),
-  ('LG',           'Corea del Sur'),
-  ('Logitech',     'Suiza'),
-  ('Cooler Master','Taiwan'),
-  ('Razer',        'Estados Unidos'),
-  ('AMD',          'Estados Unidos'),
-  ('Lian Li',      'Taiwan');
+  ('NVIDIA', 'Estados Unidos'), ('Intel', 'Estados Unidos'),
+  ('Samsung', 'Corea del Sur'), ('ASUS', 'Taiwan'),
+  ('G.Skill', 'Taiwan'),        ('Corsair', 'Estados Unidos'),
+  ('LG', 'Corea del Sur'),      ('Logitech', 'Suiza'),
+  ('Cooler Master', 'Taiwan'),  ('Razer', 'Estados Unidos'),
+  ('AMD', 'Estados Unidos'),    ('Lian Li', 'Taiwan')
+ON CONFLICT ("Nombre") DO NOTHING;
 
--- COMPONENTES (15 productos gamer de alta gama)
+-- COMPONENTES (15 productos gamer desplegados en Supabase, precios en Bs.)
 INSERT INTO catalogo."Componentes"
-  ("Nombre","Descripcion","CategoriaId","MarcaId","Precio","Stock","ImagenUrl") VALUES
-('NVIDIA GeForce RTX 5080 Ti 16GB GDDR7',
- 'GPU de ultima generacion con 16 GB GDDR7, ray tracing de 5a generacion y DLSS 4',
- 1,1, 1450.00, 12, 'https://example.com/rtx5080ti.jpg'),
-('Intel Core Ultra 9 285K 24 nucleos',
- 'Procesador de escritorio de maxima gama con 8 nucleos P y 16 nucleos E, 36 MB cache',
- 2,2,  620.00, 18, 'https://example.com/corei9285k.jpg'),
-('Samsung 990 Pro 2TB NVMe PCIe 5.0',
- 'SSD M.2 con velocidades de lectura secuencial de hasta 7450 MB/s',
- 3,3,  215.00, 35, 'https://example.com/990pro2tb.jpg'),
-('ASUS ROG Maximus Z890 Hero ATX',
- 'Placa madre Intel Z890 con DDR5, Thunderbolt 4 y Wi-Fi 7',
- 4,2,  620.00, 10, 'https://example.com/rogz890.jpg'),
-('G.SKILL Trident Z5 RGB 64GB DDR5-6400',
- 'Kit dual-channel 2x32GB DDR5 con XMP 3.0 y latencia CL32',
- 5,4,  280.00, 22, 'https://example.com/tridentz5.jpg'),
-('Corsair HX1500i Platinum 1500W',
- 'Fuente ATX3.1 con conector PCIe 5.0 nativo, 80 Plus Platinum y control por iCUE',
- 6,5,  380.00,  8, 'https://example.com/hx1500i.jpg'),
-('LG UltraGear OLED 27GS95QE 27" 240Hz',
- 'Monitor OLED QHD 2560x1440 con 0.03ms GtG y DisplayHDR True Black 400',
- 7,6,  750.00,  7, 'https://example.com/lg27gs95.jpg'),
-('Logitech G Pro X Superlight 2 DEX',
- 'Mouse inalambrico 32000 DPI sensor HERO 2 de 60g para esports profesional',
- 8,7,  165.00, 30, 'https://example.com/gprosuperlight.jpg'),
-('Cooler Master MasterLiquid 360L Core',
- 'Refrigeracion liquida AIO 360mm con bomba de 3a generacion y cabezal ARGB',
- 9,8,  175.00, 15, 'https://example.com/ml360l.jpg'),
-('Razer BlackWidow V4 Pro HyperSpeed',
- 'Teclado mecanico inalambrico con switches Razer Green, rueda multimedia y RGB Chroma',
- 8,9,  230.00, 20, 'https://example.com/bwv4pro.jpg'),
-('AMD Ryzen 9 9950X 16 nucleos AM5',
- 'CPU AMD Zen 5 de 16 nucleos y 32 hilos, TDP 170W, compatibilidad AM5',
- 2,10, 580.00, 14, 'https://example.com/r99950x.jpg'),
-('ASUS ROG Crosshair X670E Hero AM5',
- 'Placa madre AMD X670E para Ryzen 7000/9000, DDR5, PCIe 5.0 y Wi-Fi 6E',
- 4,2,  490.00, 11, 'https://example.com/crosshairx670.jpg'),
-('AMD Radeon RX 7900 XTX 24GB GDDR6',
- 'GPU AMD RDNA3 de 24 GB con soporte DisplayPort 2.1 y AV1 hardware decode',
- 1,10, 870.00, 9,  'https://example.com/rx7900xtx.jpg'),
-('Corsair MP700 PRO SE 2TB PCIe 5.0',
- 'SSD M.2 2280 con heatspreader, lectura hasta 12400 MB/s y escritura 11800 MB/s',
- 3,5,  290.00, 25, 'https://example.com/mp700pro.jpg'),
-('Lian Li O11 Dynamic EVO XL ATX',
- 'Gabinete ATX XL con soporte radiadores 480mm, vidrio templado y manejo de cables oculto',
- 10,11, 170.00, 13, 'https://example.com/o11evoxl.jpg');
+  ("Nombre","Descripcion","CategoriaId","MarcaId","ProveedorId",
+   "Precio","Stock","StockMinimo","EstadoObsolescencia")
+VALUES
+  ('NVIDIA RTX 5080 Ti',
+   'GPU de ultima generacion con 24 GB GDDR7, ray tracing y DLSS 4.0.',
+   (SELECT "Id" FROM catalogo."Categorias" WHERE "Nombre" = 'Tarjetas de Video'),
+   (SELECT "Id" FROM catalogo."Marcas" WHERE "Nombre" = 'NVIDIA'),
+   (SELECT "Id" FROM operaciones."Proveedores" WHERE "Nombre" = 'NVIDIA Latin America'),
+   19500.00, 15, 5, 'Vigente'),
+  ('Intel Core Ultra 9 285K',
+   'Procesador de 24 nucleos (8P+16E) a 5.7 GHz boost, socket LGA1851.',
+   (SELECT "Id" FROM catalogo."Categorias" WHERE "Nombre" = 'Procesadores'),
+   (SELECT "Id" FROM catalogo."Marcas" WHERE "Nombre" = 'Intel'),
+   (SELECT "Id" FROM operaciones."Proveedores" WHERE "Nombre" = 'Intel Andina'),
+   6500.00, 28, 5, 'Vigente'),
+  ('Samsung 990 Pro 2TB NVMe',
+   'SSD PCIe 5.0 con velocidades de lectura hasta 14,800 MB/s.',
+   (SELECT "Id" FROM catalogo."Categorias" WHERE "Nombre" = 'Almacenamiento'),
+   (SELECT "Id" FROM catalogo."Marcas" WHERE "Nombre" = 'Samsung'),
+   (SELECT "Id" FROM operaciones."Proveedores" WHERE "Nombre" = 'Samsung Electronics'),
+   1600.00, 52, 10, 'Vigente'),
+  ('ASUS ROG Maximus Z890 Hero',
+   'Tarjeta madre ATX LGA1851, DDR5 hasta 8000 MHz OC, 5x M.2 PCIe 5.0, Wi-Fi 7.',
+   (SELECT "Id" FROM catalogo."Categorias" WHERE "Nombre" = 'Tarjetas Madre'),
+   (SELECT "Id" FROM catalogo."Marcas" WHERE "Nombre" = 'ASUS'),
+   (SELECT "Id" FROM operaciones."Proveedores" WHERE "Nombre" = 'ASUS ROG Latam'),
+   4500.00, 10, 4, 'Vigente'),
+  ('G.SKILL Trident Z5 RGB 64GB DDR5',
+   'Kit de memoria DDR5-6400 CL32, 2x32 GB, con iluminacion RGB y XMP 3.0.',
+   (SELECT "Id" FROM catalogo."Categorias" WHERE "Nombre" = 'Memoria RAM'),
+   (SELECT "Id" FROM catalogo."Marcas" WHERE "Nombre" = 'G.Skill'),
+   (SELECT "Id" FROM operaciones."Proveedores" WHERE "Nombre" = 'G.SKILL International'),
+   2400.00, 34, 8, 'Vigente'),
+  ('Corsair HX1500i Platinum',
+   'Fuente modular 1500W 80+ Platinum con iCUE y proteccion completa.',
+   (SELECT "Id" FROM catalogo."Categorias" WHERE "Nombre" = 'Fuentes de Poder'),
+   (SELECT "Id" FROM catalogo."Marcas" WHERE "Nombre" = 'Corsair'),
+   (SELECT "Id" FROM operaciones."Proveedores" WHERE "Nombre" = 'Corsair Distribucion'),
+   2500.00, 20, 5, 'Vigente'),
+  ('LG UltraGear 27GS95QE OLED 240Hz',
+   'Monitor OLED QHD 27 pulgadas a 240Hz con 0.03ms GTG, HDMI 2.1.',
+   (SELECT "Id" FROM catalogo."Categorias" WHERE "Nombre" = 'Monitores'),
+   (SELECT "Id" FROM catalogo."Marcas" WHERE "Nombre" = 'LG'),
+   (SELECT "Id" FROM operaciones."Proveedores" WHERE "Nombre" = 'LG Electronics BO'),
+   8500.00, 8, 4, 'Vigente'),
+  ('Logitech G Pro X Superlight 2',
+   'Mouse gaming inalambrico 32,000 DPI, 60h de bateria, 60g con sensor HERO 2.',
+   (SELECT "Id" FROM catalogo."Categorias" WHERE "Nombre" = 'Perifericos'),
+   (SELECT "Id" FROM catalogo."Marcas" WHERE "Nombre" = 'Logitech'),
+   (SELECT "Id" FROM operaciones."Proveedores" WHERE "Nombre" = 'Logitech G Latam'),
+   1200.00, 45, 10, 'Vigente'),
+  ('Cooler Master MasterLiquid 360 ATMOS',
+   'Refrigeracion liquida AIO 360mm, 3x ventiladores ARGB 120mm.',
+   (SELECT "Id" FROM catalogo."Categorias" WHERE "Nombre" = 'Refrigeracion'),
+   (SELECT "Id" FROM catalogo."Marcas" WHERE "Nombre" = 'Cooler Master'),
+   (SELECT "Id" FROM operaciones."Proveedores" WHERE "Nombre" = 'Cooler Master Latam'),
+   1800.00, 22, 6, 'Vigente'),
+  ('Razer BlackWidow V4 Pro',
+   'Teclado mecanico inalambrico, switches Razer Yellow y Chroma RGB.',
+   (SELECT "Id" FROM catalogo."Categorias" WHERE "Nombre" = 'Perifericos'),
+   (SELECT "Id" FROM catalogo."Marcas" WHERE "Nombre" = 'Razer'),
+   (SELECT "Id" FROM operaciones."Proveedores" WHERE "Nombre" = 'Logitech G Latam'),
+   1500.00, 30, 6, 'Vigente'),
+  ('AMD Ryzen 9 9950X',
+   '16 nucleos y 32 hilos con arquitectura Zen 5, socket AM5, PCIe 5.0.',
+   (SELECT "Id" FROM catalogo."Categorias" WHERE "Nombre" = 'Procesadores'),
+   (SELECT "Id" FROM catalogo."Marcas" WHERE "Nombre" = 'AMD'),
+   (SELECT "Id" FROM operaciones."Proveedores" WHERE "Nombre" = 'AMD Bolivia'),
+   6200.00, 15, 5, 'Vigente'),
+  ('ASUS ROG Crosshair X670E Hero',
+   'Placa madre entusiasta AM5 para Ryzen serie 7000/9000, Wi-Fi 6E.',
+   (SELECT "Id" FROM catalogo."Categorias" WHERE "Nombre" = 'Tarjetas Madre'),
+   (SELECT "Id" FROM catalogo."Marcas" WHERE "Nombre" = 'ASUS'),
+   (SELECT "Id" FROM operaciones."Proveedores" WHERE "Nombre" = 'ASUS ROG Latam'),
+   4200.00, 12, 4, 'PorDescontinuar'),
+  ('AMD Radeon RX 7900 XTX',
+   'GPU tope de gama RDNA 3, 24GB GDDR6, DisplayPort 2.1, ideal para 4K.',
+   (SELECT "Id" FROM catalogo."Categorias" WHERE "Nombre" = 'Tarjetas de Video'),
+   (SELECT "Id" FROM catalogo."Marcas" WHERE "Nombre" = 'AMD'),
+   (SELECT "Id" FROM operaciones."Proveedores" WHERE "Nombre" = 'AMD Bolivia'),
+   9800.00, 8, 5, 'Vigente'),
+  ('Corsair MP700 PRO 2TB Gen5',
+   'SSD NVMe M.2 PCIe Gen5 x4 con enfriador activo, hasta 12,400 MB/s.',
+   (SELECT "Id" FROM catalogo."Categorias" WHERE "Nombre" = 'Almacenamiento'),
+   (SELECT "Id" FROM catalogo."Marcas" WHERE "Nombre" = 'Corsair'),
+   (SELECT "Id" FROM operaciones."Proveedores" WHERE "Nombre" = 'Corsair Distribucion'),
+   2100.00, 25, 5, 'Vigente'),
+  ('Lian Li O11 Dynamic EVO',
+   'Chasis Mid-Tower ATX de doble camara, paneles de cristal templado.',
+   (SELECT "Id" FROM catalogo."Categorias" WHERE "Nombre" = 'Cases'),
+   (SELECT "Id" FROM catalogo."Marcas" WHERE "Nombre" = 'Lian Li'),
+   (SELECT "Id" FROM operaciones."Proveedores" WHERE "Nombre" = 'Cooler Master Latam'),
+   1450.00, 4, 5, 'Vigente')
+ON CONFLICT ("Nombre") DO NOTHING;
 \end{lstlisting}
