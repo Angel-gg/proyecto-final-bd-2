@@ -342,7 +342,7 @@ namespace EcommerceApp.Controllers
                             table.Cell().Background(bg).Padding(5).Text(c.Nombre).SemiBold();
                             table.Cell().Background(bg).Padding(5).Text(c.Categoria?.Nombre ?? "—");
                             table.Cell().Background(bg).Padding(5).Text(c.Marca?.Nombre ?? "—");
-                            table.Cell().Background(bg).Padding(5).AlignRight().Text($"${c.Precio:N2}").SemiBold().FontColor(Color.FromHex("059669"));
+                            table.Cell().Background(bg).Padding(5).AlignRight().Text($"Bs.{c.Precio:N2}").SemiBold().FontColor(Color.FromHex("059669"));
                             table.Cell().Background(bg).Padding(5).AlignCenter().Text(c.Stock.ToString()).Bold().FontColor(stockColor);
 
                             alternate = !alternate;
@@ -404,7 +404,7 @@ namespace EcommerceApp.Controllers
                                 inner.Item().Row(row =>
                                 {
                                     row.RelativeItem().Text(combo.Nombre).FontSize(12).Bold().FontColor(Color.FromHex("6c63ff"));
-                                    row.ConstantItem(100).AlignRight().Text($"${combo.PrecioVenta:N2}").FontSize(12).Bold().FontColor(Color.FromHex("059669"));
+                                    row.ConstantItem(100).AlignRight().Text($"Bs.{combo.PrecioVenta:N2}").FontSize(12).Bold().FontColor(Color.FromHex("059669"));
                                 });
                                 if (!string.IsNullOrEmpty(combo.Descripcion))
                                     inner.Item().PaddingTop(4).Text(combo.Descripcion).FontSize(8).FontColor(Color.FromHex("666666"));
@@ -463,7 +463,7 @@ namespace EcommerceApp.Controllers
                             row.ConstantItem(200).AlignRight().Column(inner =>
                             {
                                 inner.Item().Text($"Generado: {DateTime.Now:dd/MM/yyyy HH:mm}").FontSize(8).FontColor(Color.FromHex("aaaaaa"));
-                                inner.Item().Text($"Valor total del inventario: ${valorTotal:N2}").FontSize(10).Bold().FontColor(Color.FromHex("059669"));
+                                inner.Item().Text($"Valor total del inventario: Bs.{valorTotal:N2}").FontSize(10).Bold().FontColor(Color.FromHex("059669"));
                                 inner.Item().Text($"Items con stock crítico (< 5): {stockCritico.Count}").FontSize(9).FontColor(Color.FromHex("ef4444"));
                             });
                         });
@@ -506,8 +506,8 @@ namespace EcommerceApp.Controllers
                             table.Cell().Background(bg).Padding(5).Text(c.Nombre).SemiBold();
                             table.Cell().Background(bg).Padding(5).Text(c.Marca?.Nombre ?? "—");
                             table.Cell().Background(bg).Padding(5).AlignCenter().Text(c.Stock.ToString()).Bold().FontColor(stockColor);
-                            table.Cell().Background(bg).Padding(5).AlignRight().Text($"${c.Precio:N2}");
-                            table.Cell().Background(bg).Padding(5).AlignRight().Text($"${c.Precio * c.Stock:N2}").SemiBold();
+                            table.Cell().Background(bg).Padding(5).AlignRight().Text($"Bs.{c.Precio:N2}");
+                            table.Cell().Background(bg).Padding(5).AlignRight().Text($"Bs.{c.Precio * c.Stock:N2}").SemiBold();
 
                             alt = !alt;
                         }
@@ -516,7 +516,7 @@ namespace EcommerceApp.Controllers
                         table.Cell().ColumnSpan(5).Background(Color.FromHex("6c63ff")).Padding(6).AlignRight()
                             .Text("VALOR TOTAL DEL INVENTARIO:").FontColor(Colors.White).Bold();
                         table.Cell().Background(Color.FromHex("6c63ff")).Padding(6).AlignRight()
-                            .Text($"${valorTotal:N2}").FontColor(Colors.White).Bold().FontSize(11);
+                            .Text($"Bs.{valorTotal:N2}").FontColor(Colors.White).Bold().FontSize(11);
                     });
 
                     page.Footer().AlignCenter().Text(x =>
@@ -800,7 +800,7 @@ namespace EcommerceApp.Controllers
             using var wb = new XLWorkbook();
             var ws = wb.Worksheets.Add("Conciliación");
 
-            var nombreMes = new System.Globalization.CultureInfo("es-MX").DateTimeFormat.GetMonthName(mes.Value);
+            var nombreMes = new System.Globalization.CultureInfo("es-BO").DateTimeFormat.GetMonthName(mes.Value);
             ws.Cell(1, 1).Value = $"CONCILIACIÓN DE PAGOS Y COMISIONES — {nombreMes.ToUpper()} {anio} — {DateTime.Now:HH:mm:ss}";
             ws.Range(1, 1, 1, 7).Merge();
 
@@ -897,7 +897,7 @@ namespace EcommerceApp.Controllers
         {
             mes  ??= DateTime.Now.Month;
             anio ??= DateTime.Now.Year;
-            var ci = new System.Globalization.CultureInfo("es-MX");
+            var ci = new System.Globalization.CultureInfo("es-BO");
 
             // Todos los meses del año para comparar
             var todoAnio = await db.Pedidos
@@ -1001,9 +1001,9 @@ namespace EcommerceApp.Controllers
                                 var bg = alt ? Color.FromHex("f0eeff") : Colors.White;
                                 table.Cell().Background(bg).Padding(5).Text(n.ToString());
                                 table.Cell().Background(bg).Padding(5).Text(item.ProductoNombre).SemiBold();
-                                table.Cell().Background(bg).Padding(5).AlignRight().Text($"${item.PrecioUnitario:N2}");
+                                table.Cell().Background(bg).Padding(5).AlignRight().Text($"Bs.{item.PrecioUnitario:N2}");
                                 table.Cell().Background(bg).Padding(5).AlignCenter().Text(item.Cantidad.ToString());
-                                table.Cell().Background(bg).Padding(5).AlignRight().Text($"${item.Subtotal:N2}").Bold();
+                                table.Cell().Background(bg).Padding(5).AlignRight().Text($"Bs.{item.Subtotal:N2}").Bold();
                                 alt = !alt; n++;
                             }
                         });
@@ -1011,10 +1011,10 @@ namespace EcommerceApp.Controllers
                         // Totales
                         col.Item().PaddingTop(12).AlignRight().Column(tot =>
                         {
-                            tot.Item().Row(r => { r.ConstantItem(120).Text("Subtotal:").AlignRight(); r.ConstantItem(100).Text($"${p.Subtotal:N2}").AlignRight(); });
-                            tot.Item().Row(r => { r.ConstantItem(120).Text("IVA (16%):").AlignRight(); r.ConstantItem(100).Text($"${p.Impuesto:N2}").AlignRight(); });
+                            tot.Item().Row(r => { r.ConstantItem(120).Text("Subtotal:").AlignRight(); r.ConstantItem(100).Text($"Bs.{p.Subtotal:N2}").AlignRight(); });
+                            tot.Item().Row(r => { r.ConstantItem(120).Text("IVA (16%):").AlignRight(); r.ConstantItem(100).Text($"Bs.{p.Impuesto:N2}").AlignRight(); });
                             tot.Item().BorderTop(1).BorderColor(Color.FromHex("6c63ff")).PaddingTop(4)
-                               .Row(r => { r.ConstantItem(120).Text("TOTAL:").AlignRight().Bold().FontSize(13); r.ConstantItem(100).Text($"${p.Total:N2}").AlignRight().Bold().FontSize(14).FontColor(Color.FromHex("6c63ff")); });
+                               .Row(r => { r.ConstantItem(120).Text("TOTAL:").AlignRight().Bold().FontSize(13); r.ConstantItem(100).Text($"Bs.{p.Total:N2}").AlignRight().Bold().FontSize(14).FontColor(Color.FromHex("6c63ff")); });
                         });
 
                         if (!string.IsNullOrEmpty(p.Notas)) {
@@ -1053,7 +1053,7 @@ namespace EcommerceApp.Controllers
                             });
                             r.ConstantItem(200).AlignRight().Column(inner => {
                                 inner.Item().Text($"Generado: {DateTime.Now:dd/MM/yyyy HH:mm:ss}").FontSize(8).FontColor(Color.FromHex("aaaaaa"));
-                                inner.Item().Text($"Total ventas: ${pedidos.Sum(p => p.Total):N2}").FontSize(10).Bold().FontColor(Color.FromHex("059669"));
+                                inner.Item().Text($"Total ventas: Bs.{pedidos.Sum(p => p.Total):N2}").FontSize(10).Bold().FontColor(Color.FromHex("059669"));
                                 inner.Item().Text($"Pedidos: {pedidos.Count}").FontSize(9);
                             });
                         });
@@ -1088,19 +1088,19 @@ namespace EcommerceApp.Controllers
                             table.Cell().Background(bg).Padding(4).Text(p.FechaPedido.ToString("HH:mm:ss")).FontColor(Color.FromHex("00d9b5"));
                             table.Cell().Background(bg).Padding(4).Text(p.Usuario?.NombreCompleto ?? "—");
                             table.Cell().Background(bg).Padding(4).AlignCenter().Text(p.MetodoPago.ToString());
-                            table.Cell().Background(bg).Padding(4).AlignRight().Text($"${p.Subtotal:N2}");
-                            table.Cell().Background(bg).Padding(4).AlignRight().Text($"${p.Impuesto:N2}");
-                            table.Cell().Background(bg).Padding(4).AlignRight().Text($"${p.Total:N2}").Bold();
+                            table.Cell().Background(bg).Padding(4).AlignRight().Text($"Bs.{p.Subtotal:N2}");
+                            table.Cell().Background(bg).Padding(4).AlignRight().Text($"Bs.{p.Impuesto:N2}");
+                            table.Cell().Background(bg).Padding(4).AlignRight().Text($"Bs.{p.Total:N2}").Bold();
                             alt = !alt;
                         }
                         table.Cell().ColumnSpan(5).Background(Color.FromHex("0d0f1a")).Padding(6).AlignRight()
                             .Text("TOTALES:").FontColor(Colors.White).Bold();
                         table.Cell().Background(Color.FromHex("0d0f1a")).Padding(6).AlignRight()
-                            .Text($"${pedidos.Sum(p => p.Subtotal):N2}").FontColor(Colors.White).Bold();
+                            .Text($"Bs.{pedidos.Sum(p => p.Subtotal):N2}").FontColor(Colors.White).Bold();
                         table.Cell().Background(Color.FromHex("0d0f1a")).Padding(6).AlignRight()
-                            .Text($"${pedidos.Sum(p => p.Impuesto):N2}").FontColor(Colors.White).Bold();
+                            .Text($"Bs.{pedidos.Sum(p => p.Impuesto):N2}").FontColor(Colors.White).Bold();
                         table.Cell().Background(Color.FromHex("6c63ff")).Padding(6).AlignRight()
-                            .Text($"${pedidos.Sum(p => p.Total):N2}").FontColor(Colors.White).Bold().FontSize(11);
+                            .Text($"Bs.{pedidos.Sum(p => p.Total):N2}").FontColor(Colors.White).Bold().FontSize(11);
                     });
                     page.Footer().AlignCenter().Text(x => {
                         x.Span($"TechParts ERP — Ventas {desde:dd/MM} al {hasta:dd/MM/yyyy} — Página ").FontSize(7).FontColor(Color.FromHex("aaaaaa"));
@@ -1151,7 +1151,7 @@ namespace EcommerceApp.Controllers
                             table.Cell().Background(bg).Padding(7).Text(item.Nombre).SemiBold();
                             table.Cell().Background(bg).Padding(7).AlignCenter().Text(item.Tipo);
                             table.Cell().Background(bg).Padding(7).AlignCenter().Text(item.Total.ToString()).Bold().FontColor(Color.FromHex("6c63ff"));
-                            table.Cell().Background(bg).Padding(7).AlignRight().Text($"${item.Ingresos:N2}").Bold().FontColor(Color.FromHex("059669"));
+                            table.Cell().Background(bg).Padding(7).AlignRight().Text($"Bs.{item.Ingresos:N2}").Bold().FontColor(Color.FromHex("059669"));
                             alt = !alt; n++;
                         }
                     });
@@ -1202,7 +1202,7 @@ namespace EcommerceApp.Controllers
                             table.Cell().Background(bg).Padding(6).Text(item.Categoria?.Nombre ?? "—");
                             table.Cell().Background(bg).Padding(6).Text(item.Marca?.Nombre ?? "—");
                             table.Cell().Background(bg).Padding(6).AlignCenter().Text(item.Stock == 0 ? "AGOTADO" : item.Stock.ToString()).Bold().FontColor(stockColor);
-                            table.Cell().Background(bg).Padding(6).AlignRight().Text($"${item.Precio:N2}");
+                            table.Cell().Background(bg).Padding(6).AlignRight().Text($"Bs.{item.Precio:N2}");
                         }
                     });
                     page.Footer().AlignCenter().Text(x => {
@@ -1226,7 +1226,7 @@ namespace EcommerceApp.Controllers
                     {
                         col.Item().Text("TechParts ERP").FontSize(18).Bold().FontColor(Color.FromHex("f59e0b"));
                         col.Item().Text("🛒 Carritos Abandonados").FontSize(12).FontColor(Color.FromHex("888888"));
-                        col.Item().Text($"Generado: {DateTime.Now:dd/MM/yyyy HH:mm:ss}  |  Total estimado perdido: ${registros.Sum(r => r.TotalEstimado):N2}").FontSize(8).FontColor(Color.FromHex("aaaaaa"));
+                        col.Item().Text($"Generado: {DateTime.Now:dd/MM/yyyy HH:mm:ss}  |  Total estimado perdido: Bs.{registros.Sum(r => r.TotalEstimado):N2}").FontSize(8).FontColor(Color.FromHex("aaaaaa"));
                         col.Item().PaddingTop(5).BorderBottom(2).BorderColor(Color.FromHex("f59e0b"));
                         col.Item().Height(8);
                     });
@@ -1252,13 +1252,13 @@ namespace EcommerceApp.Controllers
                             table.Cell().Background(bg).Padding(5).Text(r.FechaCreacion.ToString("dd/MM/yyyy HH:mm"));
                             table.Cell().Background(bg).Padding(5).Text(r.FechaUltimaActividad.ToString("dd/MM/yyyy HH:mm")).FontColor(Color.FromHex("f59e0b"));
                             table.Cell().Background(bg).Padding(5).AlignCenter().Text(r.TotalItems.ToString());
-                            table.Cell().Background(bg).Padding(5).AlignRight().Text($"${r.TotalEstimado:N2}").Bold();
+                            table.Cell().Background(bg).Padding(5).AlignRight().Text($"Bs.{r.TotalEstimado:N2}").Bold();
                             alt = !alt;
                         }
                         table.Cell().ColumnSpan(4).Background(Color.FromHex("d97706")).Padding(6).AlignRight()
                             .Text("TOTAL ESTIMADO PERDIDO:").FontColor(Colors.White).Bold();
                         table.Cell().Background(Color.FromHex("f59e0b")).Padding(6).AlignRight()
-                            .Text($"${registros.Sum(r => r.TotalEstimado):N2}").FontColor(Colors.White).Bold().FontSize(11);
+                            .Text($"Bs.{registros.Sum(r => r.TotalEstimado):N2}").FontColor(Colors.White).Bold().FontSize(11);
                     });
                     page.Footer().AlignCenter().Text(x => {
                         x.Span("TechParts ERP — Carritos Abandonados — Pág ").FontSize(7).FontColor(Color.FromHex("aaaaaa"));
@@ -1271,7 +1271,7 @@ namespace EcommerceApp.Controllers
         private static byte[] GenerarPdfConciliacion(List<Pedido> pedidos, int mes, int anio)
         {
             QuestPDF.Settings.License = LicenseType.Community;
-            var ci = new System.Globalization.CultureInfo("es-MX");
+            var ci = new System.Globalization.CultureInfo("es-BO");
             var nombreMes = ci.DateTimeFormat.GetMonthName(mes);
             return Document.Create(c =>
             {
@@ -1303,8 +1303,8 @@ namespace EcommerceApp.Controllers
                             foreach (var g in pedidos.GroupBy(p => p.MetodoPago)) {
                                 t.Cell().Padding(5).Text(g.Key.ToString());
                                 t.Cell().Padding(5).AlignCenter().Text(g.Count().ToString()).Bold();
-                                t.Cell().Padding(5).AlignRight().Text($"${g.Sum(p => p.Total):N2}").Bold().FontColor(Color.FromHex("059669"));
-                                t.Cell().Padding(5).AlignRight().Text($"${g.Sum(p => p.Comision):N2}").FontColor(Color.FromHex("6c63ff"));
+                                t.Cell().Padding(5).AlignRight().Text($"Bs.{g.Sum(p => p.Total):N2}").Bold().FontColor(Color.FromHex("059669"));
+                                t.Cell().Padding(5).AlignRight().Text($"Bs.{g.Sum(p => p.Comision):N2}").FontColor(Color.FromHex("6c63ff"));
                             }
                         });
                         col.Item().Height(12);
@@ -1331,13 +1331,13 @@ namespace EcommerceApp.Controllers
                                 t.Cell().Background(bg).Padding(4).Text(p.FechaPedido.ToString("dd/MM/yyyy")).FontSize(8);
                                 t.Cell().Background(bg).Padding(4).Text(p.FechaPedido.ToString("HH:mm:ss")).FontSize(8).FontColor(Color.FromHex("00d9b5"));
                                 t.Cell().Background(bg).Padding(4).AlignCenter().Text(p.MetodoPago.ToString()).FontSize(8);
-                                t.Cell().Background(bg).Padding(4).AlignRight().Text($"${p.Total:N2}").FontSize(8).Bold();
-                                t.Cell().Background(bg).Padding(4).AlignRight().Text($"${p.Comision:N2}").FontSize(8).FontColor(Color.FromHex("6c63ff"));
+                                t.Cell().Background(bg).Padding(4).AlignRight().Text($"Bs.{p.Total:N2}").FontSize(8).Bold();
+                                t.Cell().Background(bg).Padding(4).AlignRight().Text($"Bs.{p.Comision:N2}").FontSize(8).FontColor(Color.FromHex("6c63ff"));
                                 alt = !alt;
                             }
                             t.Cell().ColumnSpan(4).Background(Color.FromHex("6c63ff")).Padding(5).AlignRight().Text("TOTALES:").FontColor(Colors.White).Bold().FontSize(9);
-                            t.Cell().Background(Color.FromHex("6c63ff")).Padding(5).AlignRight().Text($"${pedidos.Sum(p => p.Total):N2}").FontColor(Colors.White).Bold();
-                            t.Cell().Background(Color.FromHex("6c63ff")).Padding(5).AlignRight().Text($"${pedidos.Sum(p => p.Comision):N2}").FontColor(Colors.White).Bold();
+                            t.Cell().Background(Color.FromHex("6c63ff")).Padding(5).AlignRight().Text($"Bs.{pedidos.Sum(p => p.Total):N2}").FontColor(Colors.White).Bold();
+                            t.Cell().Background(Color.FromHex("6c63ff")).Padding(5).AlignRight().Text($"Bs.{pedidos.Sum(p => p.Comision):N2}").FontColor(Colors.White).Bold();
                         });
                     });
                     page.Footer().AlignCenter().Text(x => {
@@ -1361,7 +1361,7 @@ namespace EcommerceApp.Controllers
                     {
                         col.Item().Text("TechParts ERP").FontSize(18).Bold().FontColor(Color.FromHex("ef4444"));
                         col.Item().Text("↩ Devoluciones y Reembolsos").FontSize(12).FontColor(Color.FromHex("888888"));
-                        col.Item().Text($"Generado: {DateTime.Now:dd/MM/yyyy HH:mm:ss}  |  Total reembolsado: ${devueltos.Sum(p => p.Total):N2}").FontSize(8).FontColor(Color.FromHex("aaaaaa"));
+                        col.Item().Text($"Generado: {DateTime.Now:dd/MM/yyyy HH:mm:ss}  |  Total reembolsado: Bs.{devueltos.Sum(p => p.Total):N2}").FontSize(8).FontColor(Color.FromHex("aaaaaa"));
                         col.Item().PaddingTop(5).BorderBottom(2).BorderColor(Color.FromHex("ef4444"));
                         col.Item().Height(8);
                     });
@@ -1386,13 +1386,13 @@ namespace EcommerceApp.Controllers
                             table.Cell().Background(bg).Padding(5).Text(p.FechaPedido.ToString("dd/MM/yyyy"));
                             table.Cell().Background(bg).Padding(5).Text(p.FechaPedido.ToString("HH:mm:ss")).FontColor(Color.FromHex("00d9b5"));
                             table.Cell().Background(bg).Padding(5).AlignCenter().Text(p.MetodoPago.ToString());
-                            table.Cell().Background(bg).Padding(5).AlignRight().Text($"${p.Total:N2}").Bold().FontColor(Color.FromHex("ef4444"));
+                            table.Cell().Background(bg).Padding(5).AlignRight().Text($"Bs.{p.Total:N2}").Bold().FontColor(Color.FromHex("ef4444"));
                             alt = !alt;
                         }
                         table.Cell().ColumnSpan(5).Background(Color.FromHex("dc2626")).Padding(6).AlignRight()
                             .Text("TOTAL REEMBOLSADO:").FontColor(Colors.White).Bold();
                         table.Cell().Background(Color.FromHex("ef4444")).Padding(6).AlignRight()
-                            .Text($"${devueltos.Sum(p => p.Total):N2}").FontColor(Colors.White).Bold().FontSize(11);
+                            .Text($"Bs.{devueltos.Sum(p => p.Total):N2}").FontColor(Colors.White).Bold().FontSize(11);
                     });
                     page.Footer().AlignCenter().Text(x => {
                         x.Span("TechParts ERP — Devoluciones — Pág ").FontSize(7).FontColor(Color.FromHex("aaaaaa"));
@@ -1405,7 +1405,7 @@ namespace EcommerceApp.Controllers
         private static byte[] GenerarPdfImpuestosMes(List<Pedido> pedidos, int mes, int anio)
         {
             QuestPDF.Settings.License = LicenseType.Community;
-            var ci = new System.Globalization.CultureInfo("es-MX");
+            var ci = new System.Globalization.CultureInfo("es-BO");
             var nombreMes = ci.DateTimeFormat.GetMonthName(mes);
             decimal totalIVA = pedidos.Sum(p => p.Impuesto);
             decimal totalVentas = pedidos.Sum(p => p.Total);
@@ -1430,12 +1430,12 @@ namespace EcommerceApp.Controllers
                         {
                             r.RelativeItem().Background(Color.FromHex("f0fdfa")).Border(1).BorderColor(Color.FromHex("0d9488")).Padding(12).Column(k => {
                                 k.Item().Text("Total Ventas del Mes").FontSize(8).FontColor(Color.FromHex("0d9488")).Bold();
-                                k.Item().Text($"${totalVentas:N2}").FontSize(16).Bold();
+                                k.Item().Text($"Bs.{totalVentas:N2}").FontSize(16).Bold();
                             });
                             r.ConstantItem(10);
                             r.RelativeItem().Background(Color.FromHex("f0fdfa")).Border(1).BorderColor(Color.FromHex("0d9488")).Padding(12).Column(k => {
                                 k.Item().Text("IVA 16% Retenido").FontSize(8).FontColor(Color.FromHex("0d9488")).Bold();
-                                k.Item().Text($"${totalIVA:N2}").FontSize(16).Bold().FontColor(Color.FromHex("0d9488"));
+                                k.Item().Text($"Bs.{totalIVA:N2}").FontSize(16).Bold().FontColor(Color.FromHex("0d9488"));
                             });
                             r.ConstantItem(10);
                             r.RelativeItem().Background(Color.FromHex("f0fdfa")).Border(1).BorderColor(Color.FromHex("0d9488")).Padding(12).Column(k => {
@@ -1467,16 +1467,16 @@ namespace EcommerceApp.Controllers
                                 t.Cell().Background(bg).Padding(5).Text(p.FechaPedido.ToString("HH:mm:ss")).FontColor(Color.FromHex("0d9488"));
                                 t.Cell().Background(bg).Padding(5).AlignCenter().Text(p.NumeroPedido).FontSize(8);
                                 t.Cell().Background(bg).Padding(5).Text(p.Usuario?.NombreCompleto ?? "—");
-                                t.Cell().Background(bg).Padding(5).AlignRight().Text($"${p.Subtotal:N2}");
-                                t.Cell().Background(bg).Padding(5).AlignRight().Text($"${p.Impuesto:N2}").Bold().FontColor(Color.FromHex("0d9488"));
+                                t.Cell().Background(bg).Padding(5).AlignRight().Text($"Bs.{p.Subtotal:N2}");
+                                t.Cell().Background(bg).Padding(5).AlignRight().Text($"Bs.{p.Impuesto:N2}").Bold().FontColor(Color.FromHex("0d9488"));
                                 alt = !alt;
                             }
                             t.Cell().ColumnSpan(4).Background(Color.FromHex("0d9488")).Padding(6).AlignRight()
                                 .Text("TOTAL IVA DEL MES:").FontColor(Colors.White).Bold();
                             t.Cell().Background(Color.FromHex("0d9488")).Padding(6).AlignRight()
-                                .Text($"${pedidos.Sum(p => p.Subtotal):N2}").FontColor(Colors.White).Bold();
+                                .Text($"Bs.{pedidos.Sum(p => p.Subtotal):N2}").FontColor(Colors.White).Bold();
                             t.Cell().Background(Color.FromHex("14b8a6")).Padding(6).AlignRight()
-                                .Text($"${totalIVA:N2}").FontColor(Colors.White).Bold().FontSize(11);
+                                .Text($"Bs.{totalIVA:N2}").FontColor(Colors.White).Bold().FontSize(11);
                         });
                     });
                     page.Footer().AlignCenter().Text(x => {

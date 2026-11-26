@@ -55,7 +55,7 @@
     <div class="detail-card">
         @if (!string.IsNullOrEmpty(Model.ImageUrl))
         {
-            <img src="@Model.ImageUrl" class="detail-img" alt="@Model.Nombre" />
+            <img src="@Model.ImageUrl" class="detail-img" alt="@Model.Nombre" onerror="this.onerror=null;this.src='/images/productos/placeholder.png';" />
         }
         else
         {
@@ -68,7 +68,7 @@
             {
                 <p class="detail-brand">por @Model.Marca.Nombre</p>
             }
-            <div class="detail-price">$@Model.Precio.ToString("N2") MXN</div>
+            <div class="detail-price">Bs.@Model.Precio.ToString("N2")</div>
 
             <div class="detail-grid">
                 <div class="detail-field">

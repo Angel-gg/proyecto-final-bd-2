@@ -206,7 +206,7 @@
                             <td>
                                 @if (!string.IsNullOrEmpty(c.ImageUrl))
                                 {
-                                    <img src="@c.ImageUrl" class="comp-thumb" alt="@c.Nombre" />
+                                    <img src="@c.ImageUrl" class="comp-thumb" alt="@c.Nombre" onerror="this.onerror=null;this.src='/images/productos/placeholder.png';" />
                                 }
                                 else
                                 {
@@ -216,7 +216,7 @@
                             <td style="font-weight:600; color:#fff; max-width:220px;">@c.Nombre</td>
                             <td><span class="type-badge">@(c.Categoria?.Nombre ?? "—")</span></td>
                             <td style="color:rgba(255,255,255,0.55);">@(c.Marca?.Nombre ?? "—")</td>
-                            <td class="price-cell">$@c.Precio.ToString("N2")</td>
+                            <td class="price-cell">Bs.@c.Precio.ToString("N2")</td>
                             <td class="@(c.Stock > 10 ? "stock-cell-ok" : c.Stock > 0 ? "stock-cell-low" : "stock-cell-out")">
                                 @(c.Stock > 10 ? $"✓ {c.Stock}" : c.Stock > 0 ? $"⚠ {c.Stock}" : "✗ Agotado")
                             </td>

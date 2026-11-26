@@ -48,11 +48,11 @@
         <div class="del-preview">
             @if (!string.IsNullOrEmpty(Model.ImageUrl))
             {
-                <img src="@Model.ImageUrl" alt="@Model.Nombre" />
+                <img src="@Model.ImageUrl" alt="@Model.Nombre" onerror="this.onerror=null;this.src='/images/productos/placeholder.png';" />
             }
             <h3>@Model.Nombre</h3>
             <span>@(Model.Categoria?.Nombre ?? "—") · @(Model.Marca?.Nombre ?? "—")</span><br />
-            <span class="del-price">$@Model.Precio.ToString("N2")</span>
+            <span class="del-price">Bs.@Model.Precio.ToString("N2")</span>
             &nbsp;<span style="color:rgba(255,255,255,0.35);">— @Model.Stock unidades en stock</span>
         </div>
 

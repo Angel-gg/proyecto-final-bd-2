@@ -123,13 +123,9 @@
                     </td>
                     <td>@u.CreatedAt.ToString("dd/MM/yyyy")</td>
                     <td>
-                        @{
-                            var esProtegido = u.Id == currentUserId ||
-                                (!string.IsNullOrEmpty(u.Email) && u.Email.EndsWith("@techparts.com", StringComparison.OrdinalIgnoreCase));
-                        }
                         <div class="actions-wrap">
                             <a asp-action="EditarRol" asp-route-id="@u.Id" class="btn-edit">✏️ Modificar Roles</a>
-                            @if (!esProtegido)
+                            @if (u.Id != currentUserId)
                             {
                                 <form asp-action="EliminarUsuario" asp-route-id="@u.Id" method="post" style="margin:0;display:inline;">
                                     @Html.AntiForgeryToken()

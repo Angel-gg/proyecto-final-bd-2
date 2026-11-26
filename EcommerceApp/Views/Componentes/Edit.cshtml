@@ -154,7 +154,7 @@
                 <input asp-for="ImageUrl" class="form-control-tp" id="imgUrlInput" />
                 @if (!string.IsNullOrEmpty(Model.ImageUrl))
                 {
-                    <img id="imgPreview" src="@Model.ImageUrl" class="preview-img" alt="Imagen actual" />
+                    <img id="imgPreview" src="@Model.ImageUrl" class="preview-img" alt="Imagen actual" onerror="this.onerror=null;this.src='/images/productos/placeholder.png';" />
                 }
                 else
                 {

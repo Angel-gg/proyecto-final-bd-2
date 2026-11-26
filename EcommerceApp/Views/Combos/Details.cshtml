@@ -43,7 +43,7 @@
     <div class="detail-card">
         @if (!string.IsNullOrEmpty(Model.ImageUrl))
         {
-            <img src="@Model.ImageUrl" class="detail-img" alt="@Model.Nombre" />
+            <img src="@Model.ImageUrl" class="detail-img" alt="@Model.Nombre" onerror="this.onerror=null;this.src='/images/productos/placeholder.png';" />
         }
         else
         {
@@ -57,10 +57,10 @@
             <p class="detail-desc">@Model.Descripcion</p>
 
             <div class="pricing-row">
-                <div class="combo-price">$@Model.PrecioVenta.ToString("N2")</div>
+                <div class="combo-price">Bs.@Model.PrecioVenta.ToString("N2")</div>
                 @if (Model.PrecioBase > Model.PrecioVenta && Model.PrecioBase > 0)
                 {
-                    <span class="combo-save">💰 Ahorra $@Model.Ahorro.ToString("N0")</span>
+                    <span class="combo-save">💰 Ahorra Bs.@Model.Ahorro.ToString("N0")</span>
                 }
             </div>
 
@@ -73,7 +73,7 @@
                         <div class="part-row">
                             @if (!string.IsNullOrEmpty(cc.Componente?.ImageUrl))
                             {
-                                <img src="@cc.Componente.ImageUrl" class="part-img" alt="@cc.Componente.Nombre" />
+                                <img src="@cc.Componente.ImageUrl" class="part-img" alt="@cc.Componente.Nombre" onerror="this.onerror=null;this.src='/images/productos/placeholder.png';" />
                             }
                             else
                             {
@@ -84,7 +84,7 @@
                                 <div class="part-type">@(cc.Componente?.Categoria?.Nombre ?? "—") · @(cc.Componente?.Marca?.Nombre ?? "—")</div>
                             </div>
                             <span class="part-qty">x@cc.Cantidad</span>
-                            <span class="part-price">$@cc.Componente?.Precio.ToString("N2")</span>
+                            <span class="part-price">Bs.@cc.Componente?.Precio.ToString("N2")</span>
                         </div>
                     }
                 </div>

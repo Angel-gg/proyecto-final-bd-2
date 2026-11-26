@@ -127,7 +127,7 @@
                     <div class="combo-img">
                         @if (!string.IsNullOrEmpty(combo.ImageUrl))
                         {
-                            <img src="@combo.ImageUrl" alt="@combo.Nombre" loading="lazy" />
+                            <img src="@combo.ImageUrl" alt="@combo.Nombre" loading="lazy" onerror="this.onerror=null;this.src='/images/productos/placeholder.png';" />
                         }
                         else
                         {
@@ -157,10 +157,10 @@
                             </div>
                         }
                         <div class="combo-pricing">
-                            <div class="combo-price">$@combo.PrecioVenta.ToString("N2")</div>
+                            <div class="combo-price">Bs.@combo.PrecioVenta.ToString("N2")</div>
                             @if (combo.PrecioBase > combo.PrecioVenta && combo.PrecioBase > 0)
                             {
-                                <span class="combo-save">Ahorra $@combo.Ahorro.ToString("N0")</span>
+                                <span class="combo-save">Ahorra Bs.@combo.Ahorro.ToString("N0")</span>
                             }
                         </div>
                         <div class="combo-actions">

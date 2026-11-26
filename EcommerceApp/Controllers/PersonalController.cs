@@ -118,16 +118,9 @@ namespace EcommerceApp.Controllers
                 return RedirectToAction(nameof(Index));
             }
 
-            if (!string.IsNullOrEmpty(user.Email) &&
-                user.Email.EndsWith("@techparts.com", StringComparison.OrdinalIgnoreCase))
-            {
-                TempData["Error"] = "No se pueden eliminar cuentas institucionales @techparts.com.";
-                return RedirectToAction(nameof(Index));
-            }
-
             if (await db.Pedidos.AnyAsync(p => p.UserId == id))
             {
-                TempData["Error"] = "No se puede eliminar el usuario porque tiene historial de pedidos registrado (integridad referencial RESTRICT).";
+                TempData["Error"] = "No se puede eliminar: el usuario tiene pedidos registrados (ON DELETE RESTRICT).";
                 return RedirectToAction(nameof(Index));
             }
 

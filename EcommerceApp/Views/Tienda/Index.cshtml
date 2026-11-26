@@ -225,7 +225,7 @@
         </div>
         <div class="col-lg-6 mt-5 mt-lg-0">
             <div class="hero-img-container">
-                <img src="/img/hero_gamer_pc.jpg" alt="PC Gamer Custom Liquid Cooling" style="border-radius: 1rem; object-fit: cover;" />
+                <img src="/img/hero_gamer_pc.jpg" alt="PC Gamer Custom Liquid Cooling" style="border-radius: 1rem; object-fit: cover;" onerror="this.onerror=null;this.src='/images/productos/placeholder.png';" />
             </div>
         </div>
     </div>
@@ -308,7 +308,7 @@
                             <div class="product-img">
                                 @if (!string.IsNullOrEmpty(p.ImageUrl))
                                 {
-                                    <img src="@p.ImageUrl" alt="@p.Nombre" loading="lazy" />
+                                    <img src="@p.ImageUrl" alt="@p.Nombre" loading="lazy" onerror="this.onerror=null;this.src='/images/productos/placeholder.png';" />
                                 }
                                 else
                                 {
@@ -419,7 +419,7 @@
                             <div class="combo-img">
                                 @if (!string.IsNullOrEmpty(c.ImageUrl))
                                 {
-                                    <img src="@c.ImageUrl" alt="@c.Nombre" loading="lazy" />
+                                    <img src="@c.ImageUrl" alt="@c.Nombre" loading="lazy" onerror="this.onerror=null;this.src='/images/productos/placeholder.png';" />
                                 }
                                 else
                                 {

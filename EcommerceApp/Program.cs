@@ -1,3 +1,5 @@
+using System.Globalization;
+using Microsoft.AspNetCore.Localization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using EcommerceApp.Data;
@@ -5,6 +7,12 @@ using EcommerceApp.Models;
 
 // Compatibilidad de DateTime con PostgreSQL en Npgsql 6+
 AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
+
+// Cultura predeterminada es-BO con símbolo de moneda "Bs."
+var boCulture = new CultureInfo("es-BO");
+boCulture.NumberFormat.CurrencySymbol = "Bs.";
+CultureInfo.DefaultThreadCurrentCulture = boCulture;
+CultureInfo.DefaultThreadCurrentUICulture = boCulture;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -49,6 +57,15 @@ if (!app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 app.UseStaticFiles();
+
+var supportedCultures = new[] { boCulture };
+app.UseRequestLocalization(new RequestLocalizationOptions
+{
+    DefaultRequestCulture = new RequestCulture(boCulture),
+    SupportedCultures = supportedCultures,
+    SupportedUICultures = supportedCultures
+});
+
 app.UseRouting();
 app.UseSession();
 app.UseAuthentication();
@@ -242,21 +259,21 @@ try
             var provs = await db.Proveedores.ToDictionaryAsync(p => p.Nombre, p => p.Id);
 
             db.Componentes.AddRange(
-                new Componente { Nombre = "NVIDIA RTX 5080 Ti", CategoriaId = cats["Tarjetas de Video"], MarcaId = marks["NVIDIA"], ProveedorId = provs.GetValueOrDefault("NVIDIA Latin America"), Descripcion = "GPU de última generación con 24 GB GDDR7 y DLSS 4.0 para gaming 4K extremo.", Especificaciones = "24 GB GDDR7 · PCIe 5.0 · 450W TDP · DLSS 4.0", Precio = 19500.00m, Stock = 15, StockMinimo = 5, ImageUrl = "https://pngimg.com/uploads/video_card/video_card_PNG155.png" },
-                new Componente { Nombre = "Intel Core Ultra 9 285K", CategoriaId = cats["Procesadores"], MarcaId = marks["Intel"], ProveedorId = provs.GetValueOrDefault("Intel Andina"), Descripcion = "Procesador de 24 núcleos (8P+16E) a 5.7 GHz boost, socket LGA1851.", Especificaciones = "24 núcleos · 5.7 GHz boost · LGA1851 · 125W TDP", Precio = 6500.00m, Stock = 28, StockMinimo = 5, ImageUrl = "https://pngimg.com/uploads/processor/processor_PNG40.png" },
-                new Componente { Nombre = "Samsung 990 Pro 2TB NVMe", CategoriaId = cats["Almacenamiento"], MarcaId = marks["Samsung"], ProveedorId = provs.GetValueOrDefault("Samsung Electronics"), Descripcion = "SSD PCIe 5.0 con lectura hasta 14,800 MB/s.", Especificaciones = "2 TB · PCIe 5.0 · 14,800 MB/s · M.2 2280", Precio = 1600.00m, Stock = 52, StockMinimo = 10, ImageUrl = "https://pngimg.com/uploads/hard_disc/hard_disc_PNG8436.png" },
-                new Componente { Nombre = "ASUS ROG Maximus Z890 Hero", CategoriaId = cats["Tarjetas Madre"], MarcaId = marks["ASUS"], ProveedorId = provs.GetValueOrDefault("ASUS ROG Latam"), Descripcion = "Tarjeta madre ATX LGA1851, DDR5 hasta 8000 MHz OC, Wi-Fi 7.", Especificaciones = "LGA1851 · DDR5-8000 · 5x M.2 · Wi-Fi 7", Precio = 4500.00m, Stock = 10, StockMinimo = 4, ImageUrl = "https://pngimg.com/uploads/motherboard/motherboard_PNG39.png" },
-                new Componente { Nombre = "G.SKILL Trident Z5 RGB 64GB DDR5", CategoriaId = cats["Memoria RAM"], MarcaId = marks["G.Skill"], ProveedorId = provs.GetValueOrDefault("G.SKILL International"), Descripcion = "Kit DDR5-6400 CL32, 2x32 GB con iluminación RGB.", Especificaciones = "64 GB (2x32) · DDR5-6400 · CL32 · ARGB", Precio = 2400.00m, Stock = 34, StockMinimo = 8, ImageUrl = "https://pngimg.com/uploads/ram/ram_PNG46.png" },
-                new Componente { Nombre = "Corsair HX1500i Platinum", CategoriaId = cats["Fuentes de Poder"], MarcaId = marks["Corsair"], ProveedorId = provs.GetValueOrDefault("Corsair Distribución"), Descripcion = "Fuente modular 1500W 80+ Platinum ATX 3.0.", Especificaciones = "1500W · 80+ Platinum · Full Modular", Precio = 2500.00m, Stock = 20, StockMinimo = 5, ImageUrl = "https://pngimg.com/uploads/computer_case/computer_case_PNG27.png" },
-                new Componente { Nombre = "LG UltraGear 27GS95QE OLED 240Hz", CategoriaId = cats["Monitores"], MarcaId = marks["LG"], ProveedorId = provs.GetValueOrDefault("LG Electronics BO"), Descripcion = "Monitor OLED QHD 27 pulgadas a 240Hz con 0.03ms GTG.", Especificaciones = "27\" OLED QHD · 240Hz · 0.03ms · HDMI 2.1", Precio = 8500.00m, Stock = 8, StockMinimo = 4, ImageUrl = "https://pngimg.com/uploads/monitor/monitor_PNG88.png" },
-                new Componente { Nombre = "Logitech G Pro X Superlight 2", CategoriaId = cats["Periféricos"], MarcaId = marks["Logitech"], ProveedorId = provs.GetValueOrDefault("Logitech G Latam"), Descripcion = "Mouse gaming inalámbrico 32,000 DPI, 60g, sensor HERO 2.", Especificaciones = "32,000 DPI · 60g · LIGHTSPEED", Precio = 1200.00m, Stock = 45, StockMinimo = 10, ImageUrl = "https://pngimg.com/uploads/mouse_pc/mouse_pc_PNG10207.png" },
-                new Componente { Nombre = "Cooler Master MasterLiquid 360 ATMOS", CategoriaId = cats["Refrigeración"], MarcaId = marks["Cooler Master"], ProveedorId = provs.GetValueOrDefault("Cooler Master Latam"), Descripcion = "Refrigeración líquida AIO 360mm ARGB compatible LGA1851 y AM5.", Especificaciones = "360mm AIO · 3x120mm ARGB · 2800 RPM", Precio = 1800.00m, Stock = 22, StockMinimo = 6, ImageUrl = "https://pngimg.com/uploads/computer_fan/computer_fan_PNG82.png" },
-                new Componente { Nombre = "Razer BlackWidow V4 Pro", CategoriaId = cats["Periféricos"], MarcaId = marks["Razer"], ProveedorId = provs.GetValueOrDefault("Logitech G Latam"), Descripcion = "Teclado mecánico inalámbrico switches Razer Yellow, Chroma RGB.", Especificaciones = "Razer Yellow · Wireless · Chroma RGB", Precio = 1500.00m, Stock = 30, StockMinimo = 6, ImageUrl = "https://pngimg.com/uploads/keyboard/keyboard_PNG5856.png" },
-                new Componente { Nombre = "AMD Ryzen 9 9950X", CategoriaId = cats["Procesadores"], MarcaId = marks["AMD"], ProveedorId = provs.GetValueOrDefault("AMD Bolivia"), Descripcion = "16 núcleos y 32 hilos con arquitectura Zen 5, socket AM5.", Especificaciones = "16 núcleos · 5.7 GHz · AM5 · 170W TDP", Precio = 6200.00m, Stock = 15, StockMinimo = 5, ImageUrl = "https://pngimg.com/uploads/processor/processor_PNG40.png" },
-                new Componente { Nombre = "ASUS ROG Crosshair X670E Hero", CategoriaId = cats["Tarjetas Madre"], MarcaId = marks["ASUS"], ProveedorId = provs.GetValueOrDefault("ASUS ROG Latam"), Descripcion = "Placa madre entusiasta AM5 para Ryzen 7000/9000.", Especificaciones = "AM5 · X670E · DDR5 · Wi-Fi 6E", Precio = 4200.00m, Stock = 12, StockMinimo = 4, EstadoObsolescencia = "PorDescontinuar", ImageUrl = "https://pngimg.com/uploads/motherboard/motherboard_PNG39.png" },
-                new Componente { Nombre = "AMD Radeon RX 7900 XTX", CategoriaId = cats["Tarjetas de Video"], MarcaId = marks["AMD"], ProveedorId = provs.GetValueOrDefault("AMD Bolivia"), Descripcion = "GPU tope de gama RDNA 3, 24GB GDDR6, DisplayPort 2.1.", Especificaciones = "24 GB GDDR6 · RDNA 3 · DP 2.1", Precio = 9800.00m, Stock = 8, StockMinimo = 5, ImageUrl = "https://pngimg.com/uploads/video_card/video_card_PNG155.png" },
-                new Componente { Nombre = "Corsair MP700 PRO 2TB Gen5", CategoriaId = cats["Almacenamiento"], MarcaId = marks["Corsair"], ProveedorId = provs.GetValueOrDefault("Corsair Distribución"), Descripcion = "SSD NVMe M.2 PCIe Gen5 x4 con enfriador activo.", Especificaciones = "2 TB · PCIe 5.0 · 12,400 MB/s", Precio = 2100.00m, Stock = 25, StockMinimo = 5, ImageUrl = "https://pngimg.com/uploads/hard_disc/hard_disc_PNG8436.png" },
-                new Componente { Nombre = "Lian Li O11 Dynamic EVO", CategoriaId = cats["Cases"], MarcaId = marks["Lian Li"], ProveedorId = provs.GetValueOrDefault("Cooler Master Latam"), Descripcion = "Chasis Mid-Tower ATX de doble cámara con cristal templado.", Especificaciones = "ATX Mid-Tower · Cristal Templado", Precio = 1450.00m, Stock = 4, StockMinimo = 5, ImageUrl = "https://pngimg.com/uploads/computer_case/computer_case_PNG27.png" }
+                new Componente { Nombre = "NVIDIA RTX 5080 Ti", CategoriaId = cats["Tarjetas de Video"], MarcaId = marks["NVIDIA"], ProveedorId = provs.GetValueOrDefault("NVIDIA Latin America"), Descripcion = "GPU de última generación con 24 GB GDDR7 y DLSS 4.0 para gaming 4K extremo.", Especificaciones = "24 GB GDDR7 · PCIe 5.0 · 450W TDP · DLSS 4.0", Precio = 14500.00m, Stock = 15, StockMinimo = 5, ImageUrl = "/images/productos/rtx-5080-ti.png" },
+                new Componente { Nombre = "Intel Core Ultra 9 285K", CategoriaId = cats["Procesadores"], MarcaId = marks["Intel"], ProveedorId = provs.GetValueOrDefault("Intel Andina"), Descripcion = "Procesador de 24 núcleos (8P+16E) a 5.7 GHz boost, socket LGA1851.", Especificaciones = "24 núcleos · 5.7 GHz boost · LGA1851 · 125W TDP", Precio = 5200.00m, Stock = 28, StockMinimo = 5, ImageUrl = "/images/productos/core-ultra-9-285k.png" },
+                new Componente { Nombre = "Samsung 990 Pro 2TB NVMe", CategoriaId = cats["Almacenamiento"], MarcaId = marks["Samsung"], ProveedorId = provs.GetValueOrDefault("Samsung Electronics"), Descripcion = "SSD PCIe 5.0 con lectura hasta 14,800 MB/s.", Especificaciones = "2 TB · PCIe 5.0 · 14,800 MB/s · M.2 2280", Precio = 1450.00m, Stock = 52, StockMinimo = 10, ImageUrl = "/images/productos/samsung-990-pro-2tb.png" },
+                new Componente { Nombre = "ASUS ROG Maximus Z890 Hero", CategoriaId = cats["Tarjetas Madre"], MarcaId = marks["ASUS"], ProveedorId = provs.GetValueOrDefault("ASUS ROG Latam"), Descripcion = "Tarjeta madre ATX LGA1851, DDR5 hasta 8000 MHz OC, Wi-Fi 7.", Especificaciones = "LGA1851 · DDR5-8000 · 5x M.2 · Wi-Fi 7", Precio = 4200.00m, Stock = 10, StockMinimo = 4, ImageUrl = "/images/productos/asus-rog-z890-hero.png" },
+                new Componente { Nombre = "G.SKILL Trident Z5 RGB 64GB DDR5", CategoriaId = cats["Memoria RAM"], MarcaId = marks["G.Skill"], ProveedorId = provs.GetValueOrDefault("G.SKILL International"), Descripcion = "Kit DDR5-6400 CL32, 2x32 GB con iluminación RGB.", Especificaciones = "64 GB (2x32) · DDR5-6400 · CL32 · ARGB", Precio = 2100.00m, Stock = 34, StockMinimo = 8, ImageUrl = "/images/productos/gskill-trident-z5-64gb.png" },
+                new Componente { Nombre = "Corsair HX1500i Platinum", CategoriaId = cats["Fuentes de Poder"], MarcaId = marks["Corsair"], ProveedorId = provs.GetValueOrDefault("Corsair Distribución"), Descripcion = "Fuente modular 1500W 80+ Platinum ATX 3.0.", Especificaciones = "1500W · 80+ Platinum · Full Modular", Precio = 2350.00m, Stock = 20, StockMinimo = 5, ImageUrl = "/images/productos/corsair-hx1500i.png" },
+                new Componente { Nombre = "LG UltraGear 27GS95QE OLED 240Hz", CategoriaId = cats["Monitores"], MarcaId = marks["LG"], ProveedorId = provs.GetValueOrDefault("LG Electronics BO"), Descripcion = "Monitor OLED QHD 27 pulgadas a 240Hz con 0.03ms GTG.", Especificaciones = "27\" OLED QHD · 240Hz · 0.03ms · HDMI 2.1", Precio = 6800.00m, Stock = 8, StockMinimo = 4, ImageUrl = "/images/productos/lg-ultragear-oled-27.png" },
+                new Componente { Nombre = "Logitech G Pro X Superlight 2", CategoriaId = cats["Periféricos"], MarcaId = marks["Logitech"], ProveedorId = provs.GetValueOrDefault("Logitech G Latam"), Descripcion = "Mouse gaming inalámbrico 32,000 DPI, 60g, sensor HERO 2.", Especificaciones = "32,000 DPI · 60g · LIGHTSPEED", Precio = 950.00m, Stock = 45, StockMinimo = 10, ImageUrl = "/images/productos/logitech-superlight-2.png" },
+                new Componente { Nombre = "Cooler Master MasterLiquid 360 ATMOS", CategoriaId = cats["Refrigeración"], MarcaId = marks["Cooler Master"], ProveedorId = provs.GetValueOrDefault("Cooler Master Latam"), Descripcion = "Refrigeración líquida AIO 360mm ARGB compatible LGA1851 y AM5.", Especificaciones = "360mm AIO · 3x120mm ARGB · 2800 RPM", Precio = 1490.00m, Stock = 22, StockMinimo = 6, ImageUrl = "/images/productos/cm-masterliquid-360.png" },
+                new Componente { Nombre = "Razer BlackWidow V4 Pro", CategoriaId = cats["Periféricos"], MarcaId = marks["Razer"], ProveedorId = provs.GetValueOrDefault("Logitech G Latam"), Descripcion = "Teclado mecánico inalámbrico switches Razer Yellow, Chroma RGB.", Especificaciones = "Razer Yellow · Wireless · Chroma RGB", Precio = 1350.00m, Stock = 30, StockMinimo = 6, ImageUrl = "/images/productos/razer-blackwidow-v4.png" },
+                new Componente { Nombre = "AMD Ryzen 9 9950X", CategoriaId = cats["Procesadores"], MarcaId = marks["AMD"], ProveedorId = provs.GetValueOrDefault("AMD Bolivia"), Descripcion = "16 núcleos y 32 hilos con arquitectura Zen 5, socket AM5.", Especificaciones = "16 núcleos · 5.7 GHz · AM5 · 170W TDP", Precio = 5100.00m, Stock = 15, StockMinimo = 5, ImageUrl = "/images/productos/amd-ryzen-9-9950x.png" },
+                new Componente { Nombre = "ASUS ROG Crosshair X670E Hero", CategoriaId = cats["Tarjetas Madre"], MarcaId = marks["ASUS"], ProveedorId = provs.GetValueOrDefault("ASUS ROG Latam"), Descripcion = "Placa madre entusiasta AM5 para Ryzen 7000/9000.", Especificaciones = "AM5 · X670E · DDR5 · Wi-Fi 6E", Precio = 3800.00m, Stock = 12, StockMinimo = 4, EstadoObsolescencia = "PorDescontinuar", ImageUrl = "/images/productos/asus-rog-x670e-hero.png" },
+                new Componente { Nombre = "AMD Radeon RX 7900 XTX", CategoriaId = cats["Tarjetas de Video"], MarcaId = marks["AMD"], ProveedorId = provs.GetValueOrDefault("AMD Bolivia"), Descripcion = "GPU tope de gama RDNA 3, 24GB GDDR6, DisplayPort 2.1.", Especificaciones = "24 GB GDDR6 · RDNA 3 · DP 2.1", Precio = 8600.00m, Stock = 8, StockMinimo = 5, ImageUrl = "/images/productos/amd-rx-7900-xtx.png" },
+                new Componente { Nombre = "Corsair MP700 PRO 2TB Gen5", CategoriaId = cats["Almacenamiento"], MarcaId = marks["Corsair"], ProveedorId = provs.GetValueOrDefault("Corsair Distribución"), Descripcion = "SSD NVMe M.2 PCIe Gen5 x4 con enfriador activo.", Especificaciones = "2 TB · PCIe 5.0 · 12,400 MB/s", Precio = 1850.00m, Stock = 25, StockMinimo = 5, ImageUrl = "/images/productos/corsair-mp700-pro-2tb.png" },
+                new Componente { Nombre = "Lian Li O11 Dynamic EVO", CategoriaId = cats["Cases"], MarcaId = marks["Lian Li"], ProveedorId = provs.GetValueOrDefault("Cooler Master Latam"), Descripcion = "Chasis Mid-Tower ATX de doble cámara con cristal templado.", Especificaciones = "ATX Mid-Tower · Cristal Templado", Precio = 1290.00m, Stock = 4, StockMinimo = 5, ImageUrl = "/images/productos/lian-li-o11-evo.png" }
             );
             await db.SaveChangesAsync();
             Console.WriteLine("[SEED] Componentes creados.");
@@ -283,8 +300,8 @@ try
                 {
                     Nombre = "Gaming PC Ultimate",
                     Descripcion = "La máquina definitiva para gaming 4K: RTX 5080 Ti + Core Ultra 9 285K + 64GB DDR5.",
-                    PrecioVenta = 36800.00m, Descuento = 5.15m, Stock = 5, Activo = true,
-                    ImageUrl = "https://pngimg.com/uploads/computer_case/computer_case_PNG27.png",
+                    PrecioVenta = 29678.57m, Descuento = 5.15m, Stock = 5, Activo = true,
+                    ImageUrl = "/images/productos/combo-gaming-ultimate.png",
                     ComboComponentes = new List<ComboComponente>
                     {
                         new() { ComponenteId = gpu.Id, Cantidad = 1 }, new() { ComponenteId = cpu.Id, Cantidad = 1 },
@@ -301,8 +318,8 @@ try
                 {
                     Nombre = "Setup Gaming Completo",
                     Descripcion = "Combo periféricos premium: monitor OLED 240Hz + mouse Superlight 2 + teclado BlackWidow V4.",
-                    PrecioVenta = 10500.00m, Descuento = 6.25m, Stock = 8, Activo = true,
-                    ImageUrl = "https://pngimg.com/uploads/monitor/monitor_PNG88.png",
+                    PrecioVenta = 8531.25m, Descuento = 6.25m, Stock = 8, Activo = true,
+                    ImageUrl = "/images/productos/combo-setup-completo.png",
                     ComboComponentes = new List<ComboComponente>
                     {
                         new() { ComponenteId = mon.Id, Cantidad = 1 },
@@ -318,8 +335,8 @@ try
                 {
                     Nombre = "Starter Build DDR5",
                     Descripcion = "Base perfecta para armar tu primera PC DDR5: CPU + Motherboard + RAM + SSD NVMe.",
-                    PrecioVenta = 14250.00m, Descuento = 5.00m, Stock = 8, Activo = true,
-                    ImageUrl = "https://pngimg.com/uploads/motherboard/motherboard_PNG39.png",
+                    PrecioVenta = 12302.50m, Descuento = 5.00m, Stock = 8, Activo = true,
+                    ImageUrl = "/images/productos/combo-starter-ddr5.png",
                     ComboComponentes = new List<ComboComponente>
                     {
                         new() { ComponenteId = cpu.Id, Cantidad = 1 }, new() { ComponenteId = mb.Id, Cantidad = 1 },

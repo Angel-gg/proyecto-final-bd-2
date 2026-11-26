@@ -197,7 +197,7 @@
         <div class="col-sm-6 col-xl-3">
             <div class="stat-card">
                 <div class="stat-icon" style="background:rgba(0,217,181,0.15)">💰</div>
-                <div class="stat-value">$@(((decimal)ViewBag.VentasMes).ToString("N0"))</div>
+                <div class="stat-value">Bs.@(((decimal)ViewBag.VentasMes).ToString("N0"))</div>
                 <div class="stat-label">Ventas del mes actual</div>
             </div>
         </div>
@@ -259,7 +259,7 @@
                                 <td style="font-family:monospace; color:#00d9b5;">@p.NumeroPedido</td>
                                 <td>@(p.Usuario?.NombreCompleto ?? p.Usuario?.Email ?? "N/A")</td>
                                 <td>@p.FechaPedido.ToString("dd/MM/yyyy HH:mm")</td>
-                                <td style="font-weight:700;">$@p.Total.ToString("N2")</td>
+                                <td style="font-weight:700;">Bs.@p.Total.ToString("N2")</td>
                                 <td>
                                     <span class="badge-status bg-success-soft">@p.Estado</span>
                                 </td>
@@ -297,7 +297,7 @@
         data: {
             labels: @labelsVentas,
             datasets: [{
-                label: 'Ingresos Totales ($)',
+                label: 'Ingresos Totales (Bs.)',
                 data: @datosVentas,
                 borderColor: '#6c63ff',
                 backgroundColor: 'rgba(108,99,255,0.1)',
